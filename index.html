@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f2ed">
+  <meta name="description" content="A small collection of photographs from the outdoors, collected slowly and seen in passing.">
+  <title>Field Notes — A Photo Archive</title>
+  <link rel="preconnect" href="https://images.unsplash.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f3f2ed;
+      --ink: #242721;
+      --muted: #777a70;
+      --line: #dcded5;
+      --moss: #526349;
+      --serif: "Playfair Display", Georgia, serif;
+      --sans: "DM Sans", sans-serif;
+      --mono: "DM Mono", monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); }
+    button { color: inherit; font: inherit; }
+    button:focus-visible, a:focus-visible { outline: 2px solid var(--moss); outline-offset: 4px; }
+
+    .site-header {
+      height: 74px;
+      padding: 0 6.1%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+    }
+    .wordmark { display: flex; align-items: center; gap: 11px; color: var(--ink); text-decoration: none; }
+    .wordmark-mark { width: 23px; height: 23px; border: 1px solid var(--moss); border-radius: 50%; display: grid; place-items: center; }
+    .wordmark-mark::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--moss); }
+    .wordmark-name { font-size: 13px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+    .header-note { color: var(--muted); font: 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .header-actions { display: flex; align-items: center; gap: 20px; }
+    .admin-open { padding: 8px 11px; border: 1px solid var(--line); background: transparent; cursor: pointer; font: 9px var(--mono); text-transform: uppercase; }
+    .admin-open:hover { border-color: var(--moss); color: var(--moss); }
+
+    .admin-panel { margin: 0 0 32px; padding: 18px 0 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .admin-panel[hidden] { display: none; }
+    .admin-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    .admin-heading h2, .login-dialog h2 { margin: 0; font: 500 23px var(--serif); }
+    .admin-account { color: var(--muted); font-size: 11px; }
+    .admin-signout, .upload-submit, .login-submit { padding: 9px 13px; border: 1px solid var(--moss); background: var(--moss); color: white; cursor: pointer; font: 10px var(--mono); text-transform: uppercase; }
+    .admin-signout { background: transparent; color: var(--moss); }
+    .upload-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+    .form-field { display: grid; gap: 6px; color: var(--muted); font: 9px var(--mono); letter-spacing: .04em; text-transform: uppercase; }
+    .form-field input { width: 100%; min-height: 39px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 0; background: #fff; color: var(--ink); font: 12px var(--sans); text-transform: none; }
+    .form-field input[type="file"] { padding: 6px; }
+    .upload-submit { justify-self: start; align-self: end; min-height: 39px; }
+    .upload-status, .login-status { min-height: 18px; margin: 10px 0 0; color: var(--moss); font-size: 11px; }
+
+    .login-dialog { width: min(420px, calc(100vw - 32px)); padding: 25px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+    .login-dialog::backdrop { background: rgba(25,27,24,.65); }
+    .login-dialog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .login-close { width: 32px; height: 32px; border: 1px solid var(--line); background: transparent; cursor: pointer; font-size: 19px; }
+    .login-form { display: grid; gap: 14px; }
+
+    main { max-width: 1440px; margin: auto; padding: 0 6.1%; }
+    .intro { padding: clamp(52px, 8vw, 110px) 0 42px; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px; }
+    .eyebrow { margin: 0 0 16px; color: var(--moss); font: 10px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 0; font: 500 clamp(43px, 7vw, 84px)/.98 var(--serif); letter-spacing: -.035em; }
+    h1 em { color: var(--moss); font-weight: 500; }
+    .intro-copy { max-width: 235px; margin: 0 0 5px; color: var(--muted); font-size: 13px; line-height: 1.75; }
+
+    .gallery-toolbar { min-height: 59px; display: flex; justify-content: space-between; align-items: center; gap: 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .tag-filters { min-width: 0; flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 0; }
+    .tag-filter, .clear-tags { min-height: 29px; padding: 0 11px; border: 1px solid var(--line); border-radius: 2px; background: transparent; color: var(--muted); cursor: pointer; font: 9px var(--mono); letter-spacing: .04em; }
+    .tag-filter:hover, .tag-filter[aria-pressed="true"] { border-color: var(--moss); background: var(--moss); color: #fff; }
+    .clear-tags { border-color: transparent; text-decoration: underline; text-underline-offset: 3px; }
+    .clear-tags:hover { color: var(--ink); }
+    .clear-tags:disabled { visibility: hidden; }
+    .photo-count { color: var(--muted); white-space: nowrap; font: 10px var(--mono); }
+
+    .gallery { padding: 27px 0 76px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 30px 17px; }
+    .photo-card { min-width: 0; animation: appear .5s both; }
+    .photo-card[hidden] { display: none; }
+    .photo-button { position: relative; display: block; width: 100%; aspect-ratio: 1 / 1.13; padding: 0; overflow: hidden; border: 0; background: #dfe1d9; cursor: zoom-in; text-align: left; }
+    .photo-card:nth-child(4n + 2) .photo-button { aspect-ratio: 1 / 1.32; }
+    .photo-card:nth-child(4n + 3) .photo-button { aspect-ratio: 1 / .94; }
+    .photo-card:nth-child(7n + 1) .photo-button { aspect-ratio: 1 / 1.25; }
+    .photo-button img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .65s cubic-bezier(.2,.7,.2,1), filter .35s ease; }
+    .photo-button:hover img { transform: scale(1.045); filter: saturate(.88); }
+    .photo-number { position: absolute; top: 12px; left: 12px; padding: 6px 8px; background: rgba(243,242,237,.9); color: var(--ink); font: 9px var(--mono); }
+    .photo-caption { display: flex; flex-direction: column; gap: 8px; padding-top: 11px; }
+    .photo-title { margin: 0; overflow: hidden; font: 500 14px var(--serif); text-overflow: ellipsis; white-space: nowrap; }
+    .photo-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .photo-tag { padding: 4px 6px; border: 1px solid var(--line); color: var(--muted); font: 8px var(--mono); letter-spacing: .02em; }
+
+    .site-footer { min-height: 72px; padding: 0 6.1%; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid var(--line); color: var(--muted); font: 9px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+    .lightbox { position: fixed; z-index: 5; inset: 0; display: none; align-items: center; justify-content: center; padding: 28px; background: rgba(25,27,24,.94); }
+    .lightbox.is-open { display: flex; }
+    .lightbox-figure { max-width: min(1050px, calc(100vw - 130px)); max-height: calc(100vh - 105px); margin: 0; display: flex; flex-direction: column; align-items: center; }
+    .lightbox-image { max-width: 100%; max-height: calc(100vh - 160px); object-fit: contain; }
+    .lightbox-caption { width: 100%; padding-top: 12px; color: #f3f2ed; font-size: 12px; }
+    .lightbox-control { position: absolute; width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid rgba(243,242,237,.35); border-radius: 50%; background: transparent; color: #f3f2ed; cursor: pointer; font-size: 20px; transition: background .2s ease; }
+    .lightbox-control:hover { background: rgba(243,242,237,.15); }
+    .lightbox-close { top: 25px; right: 27px; font-size: 24px; }
+    .lightbox-prev { left: 27px; }
+    .lightbox-next { right: 27px; }
+
+    @keyframes appear { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+    @media (max-width: 900px) { .gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); } .photo-card:nth-child(n) .photo-button { aspect-ratio: 1 / 1.12; } .photo-card:nth-child(3n + 2) .photo-button { aspect-ratio: 1 / 1.3; } }
+    @media (max-width: 600px) {
+      .site-header { height: 63px; padding: 0 6%; }
+      .header-note { font-size: 8px; }
+      .header-actions { gap: 8px; }
+      .header-note { display: none; }
+      .admin-open { padding: 7px 8px; font-size: 8px; }
+      main { padding: 0 6%; }
+      .intro { padding: 56px 0 30px; grid-template-columns: 1fr; gap: 14px; }
+      h1 { font-size: clamp(49px, 13vw, 72px); }
+      .intro-copy { max-width: 290px; font-size: 12px; }
+      .gallery-toolbar { align-items: flex-start; flex-direction: column; gap: 0; padding-top: 4px; }
+      .tag-filters { width: 100%; gap: 6px; padding: 10px 0; }
+      .tag-filter, .clear-tags { min-height: 27px; padding: 0 8px; font-size: 8px; }
+      .photo-count { padding-bottom: 12px; font-size: 9px; }
+      .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 11px; padding-top: 19px; }
+      .photo-card:nth-child(n) .photo-button { aspect-ratio: 1 / 1.2; }
+      .photo-card:nth-child(3n + 2) .photo-button { aspect-ratio: 1 / 1.38; }
+      .photo-title { font-size: 13px; }
+      .site-footer { padding: 17px 6%; font-size: 8px; }
+      .upload-form { grid-template-columns: 1fr; }
+      .admin-heading { align-items: flex-start; flex-direction: column; }
+      .lightbox { padding: 20px; }
+      .lightbox-figure { max-width: calc(100vw - 40px); }
+      .lightbox-image { max-height: calc(100vh - 140px); }
+      .lightbox-control { width: 36px; height: 36px; background: rgba(25,27,24,.55); }
+      .lightbox-prev { bottom: 23px; left: calc(50% - 46px); }
+      .lightbox-next { right: calc(50% - 46px); bottom: 23px; }
+      .lightbox-close { top: 15px; right: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a class="wordmark" href="#top" aria-label="Field Notes home">
+      <span class="wordmark-mark" aria-hidden="true"></span>
+      <span class="wordmark-name">Field Notes</span>
+    </a>
+    <div class="header-actions">
+      <span class="header-note">An outdoor photo archive · Est. 2024</span>
+      <button class="admin-open" id="admin-open" type="button">Admin sign in</button>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">A collection of quiet moments</p>
+        <h1 id="page-title">Places, held<br>in <em>light.</em></h1>
+      </div>
+      <p class="intro-copy">Small reminders to take the long way home. Photographs gathered outdoors, one passing moment at a time.</p>
+    </section>
+
+    <section class="admin-panel" id="admin-panel" aria-labelledby="admin-heading" hidden>
+      <div class="admin-heading">
+        <div>
+          <h2 id="admin-heading">Add a photograph</h2>
+          <span class="admin-account" id="admin-account"></span>
+        </div>
+        <button class="admin-signout" id="admin-signout" type="button">Sign out</button>
+      </div>
+      <form class="upload-form" id="upload-form">
+        <label class="form-field">Photo file
+          <input id="upload-file" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required>
+        </label>
+        <label class="form-field">Title
+          <input id="upload-title" name="title" type="text" maxlength="100" required>
+        </label>
+        <label class="form-field">Accessible image description
+          <input id="upload-alt" name="alt" type="text" maxlength="240" required>
+        </label>
+        <label class="form-field">Tags, separated by commas
+          <input id="upload-tags" name="tags" type="text" placeholder="forest, sunrise, mountains" required>
+        </label>
+        <button class="upload-submit" id="upload-submit" type="submit">Upload photo</button>
+      </form>
+      <p class="upload-status" id="upload-status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section aria-label="Photo collection">
+      <div class="gallery-toolbar">
+        <div class="tag-filters" role="group" aria-label="Filter photographs by tags">
+          <button class="tag-filter" type="button" data-tag="alpine" aria-pressed="false">Alpine</button>
+          <button class="tag-filter" type="button" data-tag="blue-hour" aria-pressed="false">Blue hour</button>
+          <button class="tag-filter" type="button" data-tag="coast" aria-pressed="false">Coast</button>
+          <button class="tag-filter" type="button" data-tag="clouds" aria-pressed="false">Clouds</button>
+          <button class="tag-filter" type="button" data-tag="countryside" aria-pressed="false">Countryside</button>
+          <button class="tag-filter" type="button" data-tag="desert" aria-pressed="false">Desert</button>
+          <button class="tag-filter" type="button" data-tag="dunes" aria-pressed="false">Dunes</button>
+          <button class="tag-filter" type="button" data-tag="fields" aria-pressed="false">Fields</button>
+          <button class="tag-filter" type="button" data-tag="forest" aria-pressed="false">Forest</button>
+          <button class="tag-filter" type="button" data-tag="hiking" aria-pressed="false">Hiking</button>
+          <button class="tag-filter" type="button" data-tag="mountains" aria-pressed="false">Mountains</button>
+          <button class="tag-filter" type="button" data-tag="mist" aria-pressed="false">Mist</button>
+          <button class="tag-filter" type="button" data-tag="reflection" aria-pressed="false">Reflection</button>
+          <button class="tag-filter" type="button" data-tag="sunrise" aria-pressed="false">Sunrise</button>
+          <button class="tag-filter" type="button" data-tag="sunset" aria-pressed="false">Sunset</button>
+          <button class="tag-filter" type="button" data-tag="sunlight" aria-pressed="false">Sunlight</button>
+          <button class="tag-filter" type="button" data-tag="trail" aria-pressed="false">Trail</button>
+          <button class="tag-filter" type="button" data-tag="water" aria-pressed="false">Water</button>
+          <button class="tag-filter" type="button" data-tag="waves" aria-pressed="false">Waves</button>
+          <button class="tag-filter" type="button" data-tag="wide-open" aria-pressed="false">Wide open</button>
+          <button class="clear-tags" id="clear-tags" type="button" disabled>Clear tags</button>
+        </div>
+        <span class="photo-count" id="photo-count" aria-live="polite">12 photographs</span>
+      </div>
+
+      <div class="gallery" id="gallery">
+        <article class="photo-card" data-tags="water mountains alpine sunrise reflection">
+          <button class="photo-button" type="button" aria-label="View Stillwater">
+            <img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="A still alpine lake reflecting steep green mountains" fetchpriority="high">
+            <span class="photo-number">01</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">Stillwater</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Water</span><span class="photo-tag">Mountains</span><span class="photo-tag">Alpine</span><span class="photo-tag">Sunrise</span><span class="photo-tag">Reflection</span></div></div>
+        </article>
+        <article class="photo-card" data-tags="mountains alpine sunrise clouds">
+          <button class="photo-button" type="button" aria-label="View First Light">
+            <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="Layered mountain peaks rising into a pale morning sky" loading="lazy">
+            <span class="photo-number">02</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">First Light</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Mountains</span><span class="photo-tag">Alpine</span><span class="photo-tag">Sunrise</span><span class="photo-tag">Clouds</span></div></div>
+        </article>
+        <article class="photo-card" data-tags="forest sunlight trail">
+          <button class="photo-button" type="button" aria-label="View Green Room">
+            <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="Sunlight filtering through a dense green forest canopy" loading="lazy">
+            <span class="photo-number">03</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">Green Room</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Forest</span><span class="photo-tag">Sunlight</span><span class="photo-tag">Trail</span></div></div>
+        </article>
+        <article class="photo-card" data-tags="fields sunrise countryside">
+          <button class="photo-button" type="button" aria-label="View The Long Way">
+            <img src="https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="Low sun spilling across rolling countryside and a winding road" loading="lazy">
+            <span class="photo-number">04</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">The Long Way</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Fields</span><span class="photo-tag">Sunrise</span><span class="photo-tag">Countryside</span></div></div>
+        </article>
+        <article class="photo-card" data-tags="water coast waves blue-hour">
+          <button class="photo-button" type="button" aria-label="View Blue Hour">
+            <img src="https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="Deep blue ocean waves rolling toward the shore" loading="lazy">
+            <span class="photo-number">05</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">Blue Hour</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Water</span><span class="photo-tag">Coast</span><span class="photo-tag">Waves</span><span class="photo-tag">Blue hour</span></div></div>
+        </article>
+        <article class="photo-card" data-tags="mountains water alpine clouds">
+          <button class="photo-button" type="button" aria-label="View Above the Clouds">
+            <img src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="A quiet mountain valley and lake beneath cloudy peaks" loading="lazy">
+            <span class="photo-number">06</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">Above the Clouds</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Mountains</span><span class="photo-tag">Water</span><span class="photo-tag">Alpine</span><span class="photo-tag">Clouds</span></div></div>
+        </article>
+        <article class="photo-card" data-tags="fields clouds wide-open">
+          <button class="photo-button" type="button" aria-label="View Open Country">
+            <img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="Wide open landscape beneath a dramatic cloud-filled sky" loading="lazy">
+            <span class="photo-number">07</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">Open Country</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Fields</span><span class="photo-tag">Clouds</span><span class="photo-tag">Wide open</span></div></div>
+        </article>
+        <article class="photo-card" data-tags="forest mountains mist">
+          <button class="photo-button" type="button" aria-label="View After the Rain">
+            <img src="https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="A misty woodland of evergreen trees on a mountain slope" loading="lazy">
+            <span class="photo-number">08</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">After the Rain</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Forest</span><span class="photo-tag">Mountains</span><span class="photo-tag">Mist</span></div></div>
+        </article>
+        <article class="photo-card" data-tags="water mountains reflection">
+          <button class="photo-button" type="button" aria-label="View Glass Lake">
+            <img src="https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="Green hills reflected in clear still water" loading="lazy">
+            <span class="photo-number">09</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">Glass Lake</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Water</span><span class="photo-tag">Mountains</span><span class="photo-tag">Reflection</span></div></div>
+        </article>
+        <article class="photo-card" data-tags="mountains hiking alpine">
+          <button class="photo-button" type="button" aria-label="View High Country">
+            <img src="https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="A hiker looking out over a high mountain valley" loading="lazy">
+            <span class="photo-number">10</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">High Country</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Mountains</span><span class="photo-tag">Hiking</span><span class="photo-tag">Alpine</span></div></div>
+        </article>
+        <article class="photo-card" data-tags="desert dunes sunset">
+          <button class="photo-button" type="button" aria-label="View Dune Lines">
+            <img src="https://images.unsplash.com/photo-1509316785289-025f5b846b35?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="Sculpted golden sand dunes beneath a clear sky" loading="lazy">
+            <span class="photo-number">11</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">Dune Lines</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Desert</span><span class="photo-tag">Dunes</span><span class="photo-tag">Sunset</span></div></div>
+        </article>
+        <article class="photo-card" data-tags="forest trail sunlight">
+          <button class="photo-button" type="button" aria-label="View Quiet Path">
+            <img src="https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="A quiet woodland path winding through tall trees" loading="lazy">
+            <span class="photo-number">12</span>
+          </button>
+          <div class="photo-caption"><h2 class="photo-title">Quiet Path</h2><div class="photo-tags" aria-label="Tags"><span class="photo-tag">Forest</span><span class="photo-tag">Trail</span><span class="photo-tag">Sunlight</span></div></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><span>Field Notes · A photo archive</span><span>Made for the long way round</span></footer>
+
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photograph viewer" aria-hidden="true">
+    <button class="lightbox-control lightbox-close" type="button" aria-label="Close photograph">×</button>
+    <button class="lightbox-control lightbox-prev" type="button" aria-label="Previous photograph">‹</button>
+    <figure class="lightbox-figure">
+      <img class="lightbox-image" id="lightbox-image" alt="">
+      <figcaption class="lightbox-caption"><span id="lightbox-title"></span></figcaption>
+    </figure>
+    <button class="lightbox-control lightbox-next" type="button" aria-label="Next photograph">›</button>
+  </div>
+
+  <dialog class="login-dialog" id="login-dialog" aria-labelledby="login-heading">
+    <div class="login-dialog-header">
+      <h2 id="login-heading">Admin sign in</h2>
+      <button class="login-close" id="login-close" type="button" aria-label="Close sign in">×</button>
+    </div>
+    <form class="login-form" id="login-form">
+      <label class="form-field">Email
+        <input id="login-email" name="email" type="email" autocomplete="username" required>
+      </label>
+      <label class="form-field">Password
+        <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="login-submit" type="submit">Sign in</button>
+    </form>
+    <p class="login-status" id="login-status" role="status" aria-live="polite"></p>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script>
+    let cards = [...document.querySelectorAll('.photo-card')];
+    const tagButtons = [...document.querySelectorAll('.tag-filter')];
+    const clearTagsButton = document.querySelector('#clear-tags');
+    const photoCount = document.querySelector('#photo-count');
+    const lightbox = document.querySelector('#lightbox');
+    const lightboxImage = document.querySelector('#lightbox-image');
+    const lightboxTitle = document.querySelector('#lightbox-title');
+    const selectedTags = new Set();
+    const gallery = document.querySelector('#gallery');
+    const adminPanel = document.querySelector('#admin-panel');
+    const adminButton = document.querySelector('#admin-open');
+    const adminAccount = document.querySelector('#admin-account');
+    const loginDialog = document.querySelector('#login-dialog');
+    const loginForm = document.querySelector('#login-form');
+    const loginStatus = document.querySelector('#login-status');
+    const uploadForm = document.querySelector('#upload-form');
+    const uploadStatus = document.querySelector('#upload-status');
+    const uploadSubmit = document.querySelector('#upload-submit');
+    const supabaseSettings = window.FIELD_NOTES_SUPABASE ?? {};
+    const supabaseClient = window.supabase && supabaseSettings.url && supabaseSettings.anonKey
+      ? window.supabase.createClient(supabaseSettings.url, supabaseSettings.anonKey)
+      : null;
+    const loadedPhotoIds = new Set();
+    let visibleCards = cards;
+    let currentIndex = 0;
+    let returnFocus = null;
+    let verifiedAdminId = null;
+
+    function formatTag(tag) {
+      return tag.split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    }
+
+    function normalizeTag(tag) {
+      return tag.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    function bindTagButton(button) {
+      button.addEventListener('click', () => {
+        const tag = button.dataset.tag;
+        if (selectedTags.has(tag)) selectedTags.delete(tag);
+        else selectedTags.add(tag);
+        button.setAttribute('aria-pressed', String(selectedTags.has(tag)));
+        applyTagFilters();
+      });
+    }
+
+    function registerTag(tag) {
+      if (tagButtons.some((button) => button.dataset.tag === tag)) return;
+      const button = document.createElement('button');
+      button.className = 'tag-filter';
+      button.type = 'button';
+      button.dataset.tag = tag;
+      button.setAttribute('aria-pressed', 'false');
+      button.textContent = formatTag(tag);
+      document.querySelector('.tag-filters').insertBefore(button, document.querySelector('#clear-tags'));
+      tagButtons.push(button);
+      bindTagButton(button);
+    }
+
+    function applyTagFilters() {
+      visibleCards = cards.filter((card) => {
+        const photoTags = card.dataset.tags ? card.dataset.tags.split(' ') : [];
+        return [...selectedTags].every((tag) => photoTags.includes(tag));
+      });
+      cards.forEach((card) => { card.hidden = !visibleCards.includes(card); });
+      photoCount.textContent = `${visibleCards.length} ${visibleCards.length === 1 ? 'photograph' : 'photographs'}`;
+      clearTagsButton.disabled = selectedTags.size === 0;
+    }
+
+    tagButtons.forEach(bindTagButton);
+
+    clearTagsButton.addEventListener('click', () => {
+      selectedTags.clear();
+      tagButtons.forEach((button) => button.setAttribute('aria-pressed', 'false'));
+      applyTagFilters();
+    });
+
+    function showPhoto(index) {
+      currentIndex = (index + visibleCards.length) % visibleCards.length;
+      const card = visibleCards[currentIndex];
+      const thumbnail = card.querySelector('img');
+      lightboxImage.src = thumbnail.src.replace(/w=900/, 'w=1800');
+      lightboxImage.alt = thumbnail.alt;
+      lightboxTitle.textContent = card.querySelector('.photo-title').textContent;
+    }
+
+    function openLightbox(card) {
+      returnFocus = card.querySelector('.photo-button');
+      showPhoto(visibleCards.indexOf(card));
+      lightbox.classList.add('is-open');
+      lightbox.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      lightbox.querySelector('.lightbox-close').focus();
+    }
+
+    function closeLightbox() {
+      lightbox.classList.remove('is-open');
+      lightbox.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      returnFocus?.focus();
+    }
+
+    function createUploadedCard(photo, imageUrl) {
+      if (photo.id && loadedPhotoIds.has(photo.id)) return;
+      if (photo.id) loadedPhotoIds.add(photo.id);
+      const article = document.createElement('article');
+      article.className = 'photo-card';
+      article.dataset.tags = photo.tags.join(' ');
+
+      const photoButton = document.createElement('button');
+      photoButton.className = 'photo-button';
+      photoButton.type = 'button';
+      photoButton.setAttribute('aria-label', `View ${photo.title}`);
+
+      const image = document.createElement('img');
+      image.src = imageUrl;
+      image.alt = photo.alt_text;
+      image.loading = 'lazy';
+
+      const number = document.createElement('span');
+      number.className = 'photo-number';
+      number.textContent = String(cards.length + 1).padStart(2, '0');
+      photoButton.append(image, number);
+
+      const caption = document.createElement('div');
+      caption.className = 'photo-caption';
+      const title = document.createElement('h2');
+      title.className = 'photo-title';
+      title.textContent = photo.title;
+      const tags = document.createElement('div');
+      tags.className = 'photo-tags';
+      tags.setAttribute('aria-label', 'Tags');
+      photo.tags.forEach((tag) => {
+        registerTag(tag);
+        const chip = document.createElement('span');
+        chip.className = 'photo-tag';
+        chip.textContent = formatTag(tag);
+        tags.append(chip);
+      });
+      caption.append(title, tags);
+      article.append(photoButton, caption);
+      photoButton.addEventListener('click', () => openLightbox(article));
+      gallery.prepend(article);
+      cards.unshift(article);
+      applyTagFilters();
+    }
+
+    async function loadUploadedPhotos() {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient
+        .from('photos')
+        .select('id, title, alt_text, tags, storage_path, created_at')
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Unable to load uploaded photos:', error.message);
+        return;
+      }
+      data.reverse().forEach((photo) => {
+        const { data: image } = supabaseClient.storage.from('gallery').getPublicUrl(photo.storage_path);
+        createUploadedCard(photo, image.publicUrl);
+      });
+    }
+
+    async function verifyAdminSession(session) {
+      if (!session || !supabaseClient) {
+        verifiedAdminId = null;
+        adminPanel.hidden = true;
+        adminButton.textContent = 'Admin sign in';
+        return;
+      }
+      if (session.user.id === verifiedAdminId) return;
+      adminPanel.hidden = true;
+      const { data, error } = await supabaseClient.rpc('is_gallery_admin');
+      if (error || !data) {
+        loginStatus.textContent = 'This account is not authorized to manage the gallery.';
+        await supabaseClient.auth.signOut();
+        return;
+      }
+      verifiedAdminId = session.user.id;
+      adminAccount.textContent = session.user.email;
+      adminButton.textContent = 'Manage photos';
+      adminPanel.hidden = false;
+      loginStatus.textContent = '';
+      loginDialog.close();
+      await loadUploadedPhotos();
+    }
+
+    adminButton.addEventListener('click', () => {
+      if (!adminPanel.hidden) {
+        adminPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      if (!supabaseClient) {
+        loginStatus.textContent = 'Add your Supabase project URL and public key to supabase-config.js first.';
+      } else {
+        loginStatus.textContent = '';
+      }
+      loginDialog.showModal();
+    });
+
+    document.querySelector('#login-close').addEventListener('click', () => loginDialog.close());
+
+    loginForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!supabaseClient) {
+        loginStatus.textContent = 'Add your Supabase project URL and public key to supabase-config.js first.';
+        return;
+      }
+      const email = document.querySelector('#login-email').value.trim();
+      const password = document.querySelector('#login-password').value;
+      loginStatus.textContent = 'Signing in…';
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) loginStatus.textContent = error.message;
+    });
+
+    document.querySelector('#admin-signout').addEventListener('click', async () => {
+      if (supabaseClient) await supabaseClient.auth.signOut();
+    });
+
+    uploadForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!supabaseClient) return;
+      const file = document.querySelector('#upload-file').files[0];
+      const title = document.querySelector('#upload-title').value.trim();
+      const altText = document.querySelector('#upload-alt').value.trim();
+      const tags = [...new Set(document.querySelector('#upload-tags').value.split(',').map(normalizeTag).filter(Boolean))];
+      const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif' };
+      if (!file || !extensions[file.type] || file.size > 10 * 1024 * 1024 || !title || !altText || tags.length === 0) {
+        uploadStatus.textContent = 'Choose a JPEG, PNG, WebP, or AVIF under 10 MB, and add a title, description, and at least one tag.';
+        return;
+      }
+
+      uploadSubmit.disabled = true;
+      uploadStatus.textContent = 'Uploading photo…';
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+      if (userError || !userData.user) {
+        uploadStatus.textContent = 'Your session expired. Sign in again to upload.';
+        uploadSubmit.disabled = false;
+        return;
+      }
+
+      const storagePath = `${userData.user.id}/${crypto.randomUUID()}.${extensions[file.type]}`;
+      const { error: storageError } = await supabaseClient.storage.from('gallery').upload(storagePath, file, {
+        cacheControl: '3600',
+        contentType: file.type,
+        upsert: false
+      });
+      if (storageError) {
+        uploadStatus.textContent = storageError.message;
+        uploadSubmit.disabled = false;
+        return;
+      }
+
+      const photo = { title, alt_text: altText, tags, storage_path: storagePath, created_by: userData.user.id };
+      const { data: savedPhoto, error: insertError } = await supabaseClient.from('photos').insert(photo).select().single();
+      if (insertError) {
+        await supabaseClient.storage.from('gallery').remove([storagePath]);
+        uploadStatus.textContent = insertError.message;
+        uploadSubmit.disabled = false;
+        return;
+      }
+
+      const { data: image } = supabaseClient.storage.from('gallery').getPublicUrl(savedPhoto.storage_path);
+      createUploadedCard(savedPhoto, image.publicUrl);
+      uploadForm.reset();
+      uploadStatus.textContent = 'Photo uploaded and added to the gallery.';
+      uploadSubmit.disabled = false;
+    });
+
+    if (supabaseClient) {
+      void loadUploadedPhotos();
+      supabaseClient.auth.onAuthStateChange((_event, session) => {
+        setTimeout(() => { void verifyAdminSession(session); }, 0);
+      });
+    }
+
+    cards.forEach((card) => card.querySelector('.photo-button').addEventListener('click', () => openLightbox(card)));
+    lightbox.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
+    lightbox.querySelector('.lightbox-prev').addEventListener('click', () => showPhoto(currentIndex - 1));
+    lightbox.querySelector('.lightbox-next').addEventListener('click', () => showPhoto(currentIndex + 1));
+    lightbox.addEventListener('click', (event) => { if (event.target === lightbox) closeLightbox(); });
+
+    document.addEventListener('keydown', (event) => {
+      if (!lightbox.classList.contains('is-open')) return;
+      if (event.key === 'Escape') closeLightbox();
+      if (event.key === 'ArrowLeft') showPhoto(currentIndex - 1);
+      if (event.key === 'ArrowRight') showPhoto(currentIndex + 1);
+    });
+  </script>
+</body>
+</html>
