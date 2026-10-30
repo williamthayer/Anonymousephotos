@@ -98,6 +98,8 @@
     .photo-button:hover img { transform: scale(1.045); filter: saturate(.88); }
     .photo-caption { display: flex; flex-direction: column; gap: 8px; padding-top: 11px; }
     .photo-title { margin: 0; overflow: hidden; font: 500 14px var(--serif); text-overflow: ellipsis; white-space: nowrap; }
+    .photo-title a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+    .photo-title a:hover { color: var(--moss); text-decoration-color: currentColor; }
     .photo-tags { display: flex; flex-wrap: wrap; gap: 5px; }
     .photo-tag { padding: 4px 6px; border: 1px solid var(--line); color: var(--muted); font: 8px var(--mono); letter-spacing: .02em; }
     .photo-admin-controls { display: flex; align-items: center; gap: 12px; }
@@ -193,8 +195,8 @@
         <label class="form-field">Title
           <input id="upload-title" name="title" type="text" maxlength="100" required>
         </label>
-        <label class="form-field">Accessible image description
-          <input id="upload-alt" name="alt" type="text" maxlength="240" required>
+        <label class="form-field">Title link URL
+          <input id="upload-link" name="link" type="url" inputmode="url" placeholder="https://example.com" required>
         </label>
         <label class="form-field">Tags, separated by commas
           <input id="upload-tags" name="tags" type="text" placeholder="forest, sunrise, mountains" required>
@@ -379,7 +381,7 @@
 
       const image = document.createElement('img');
       image.src = imageUrl;
-      image.alt = photo.alt_text;
+      image.alt = photo.alt_text || photo.title;
       image.loading = 'lazy';
 
       photoButton.append(image);
@@ -388,7 +390,16 @@
       caption.className = 'photo-caption';
       const title = document.createElement('h2');
       title.className = 'photo-title';
-      title.textContent = photo.title;
+      if (photo.link_url) {
+        const titleLink = document.createElement('a');
+        titleLink.href = photo.link_url;
+        titleLink.target = '_blank';
+        titleLink.rel = 'noopener noreferrer';
+        titleLink.textContent = photo.title;
+        title.append(titleLink);
+      } else {
+        title.textContent = photo.title;
+      }
       const tags = document.createElement('div');
       tags.className = 'photo-tags';
       tags.setAttribute('aria-label', 'Tags');
@@ -522,7 +533,7 @@
       if (!supabaseClient) return;
       const { data, error } = await supabaseClient
         .from('photos')
-        .select('id, title, alt_text, tags, storage_path, created_at')
+        .select('id, title, alt_text, link_url, tags, storage_path, created_at')
         .order('created_at', { ascending: false });
       if (error) {
         console.error('Unable to load uploaded photos:', error.message);
@@ -616,7 +627,7 @@
       if (!supabaseClient) return;
       const file = document.querySelector('#upload-file').files[0];
       const title = document.querySelector('#upload-title').value.trim();
-      const altText = document.querySelector('#upload-alt').value.trim();
+      const linkUrl = document.querySelector('#upload-link').value.trim();
       const tags = [...new Set(document.querySelector('#upload-tags').value.split(',').map(normalizeTag).filter(Boolean))];
       const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif' };
       if (!file) {
@@ -631,8 +642,19 @@
         uploadStatus.textContent = 'Unsupported photo type. Choose a JPEG, PNG, WebP, or AVIF image.';
         return;
       }
-      if (!title || !altText || tags.length === 0) {
-        uploadStatus.textContent = 'Add a title, image description, and at least one tag.';
+      if (!title || tags.length === 0) {
+        uploadStatus.textContent = 'Add a title and at least one tag.';
+        return;
+      }
+      let parsedLink;
+      try {
+        parsedLink = new URL(linkUrl);
+      } catch {
+        uploadStatus.textContent = 'Enter a valid link starting with https:// or http://.';
+        return;
+      }
+      if (!['https:', 'http:'].includes(parsedLink.protocol)) {
+        uploadStatus.textContent = 'The title link must start with https:// or http://.';
         return;
       }
 
@@ -662,7 +684,7 @@
 
         uploadProgress.setAttribute('aria-valuetext', 'Saving photo details');
         uploadStatus.textContent = 'Image uploaded. Saving its title and tags…';
-        const photo = { title, alt_text: altText, tags, storage_path: storagePath, created_by: userData.user.id };
+        const photo = { title, alt_text: title, link_url: parsedLink.href, tags, storage_path: storagePath, created_by: userData.user.id };
         const { data: savedPhoto, error: insertError } = await supabaseClient.from('photos').insert(photo).select().single();
         if (insertError) {
           await supabaseClient.storage.from('gallery').remove([storagePath]);

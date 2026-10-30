@@ -24,7 +24,7 @@ The site is static and can be published from this repository with GitHub Pages. 
    ```
 
 6. Commit the site files and enable GitHub Pages for the repository's root folder.
-7. Open the published site and choose **Admin sign in** to upload photos. Add a title, an accessible image description, and comma-separated tags.
+7. Open the published site and choose **Admin sign in** to upload photos. Add a title, its destination URL, and comma-separated tags. The displayed title links to that URL; the title is also used as fallback image text.
 
 If you already ran the setup SQL, run the updated `supabase-setup.sql` again after changes so the current storage policies are applied. Signed-in admins can edit tags or remove uploaded photos from the gallery. The built-in sample photos are not stored in Supabase and cannot be managed from the admin panel.
 

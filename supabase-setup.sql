@@ -7,11 +7,14 @@ create table if not exists public.photos (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   alt_text text not null,
+  link_url text,
   tags text[] not null default '{}',
   storage_path text not null unique,
   created_by uuid not null references auth.users(id),
   created_at timestamptz not null default now()
 );
+
+alter table public.photos add column if not exists link_url text;
 
 alter table public.gallery_admins enable row level security;
 alter table public.photos enable row level security;
