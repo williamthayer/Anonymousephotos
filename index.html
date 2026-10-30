@@ -58,6 +58,10 @@
     .form-field input { width: 100%; min-height: 39px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 0; background: #fff; color: var(--ink); font: 12px var(--sans); text-transform: none; }
     .form-field input[type="file"] { padding: 6px; }
     .upload-submit { justify-self: start; align-self: end; min-height: 39px; }
+    .upload-submit:disabled { opacity: .6; cursor: wait; }
+    .upload-progress { height: 4px; margin-top: 15px; overflow: hidden; background: var(--line); }
+    .upload-progress[hidden] { display: none; }
+    .upload-progress span { width: 38%; height: 100%; display: block; background: var(--moss); animation: upload-progress 1.2s ease-in-out infinite alternate; }
     .upload-status, .login-status { min-height: 18px; margin: 10px 0 0; color: var(--moss); font-size: 11px; }
 
     .login-dialog { width: min(420px, calc(100vw - 32px)); padding: 25px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
@@ -96,6 +100,13 @@
     .photo-title { margin: 0; overflow: hidden; font: 500 14px var(--serif); text-overflow: ellipsis; white-space: nowrap; }
     .photo-tags { display: flex; flex-wrap: wrap; gap: 5px; }
     .photo-tag { padding: 4px 6px; border: 1px solid var(--line); color: var(--muted); font: 8px var(--mono); letter-spacing: .02em; }
+    .photo-admin-controls { display: flex; align-items: center; gap: 12px; }
+    .photo-admin-controls button, .photo-tag-editor button { padding: 0; border: 0; background: transparent; color: var(--moss); cursor: pointer; font: 9px var(--mono); text-decoration: underline; text-underline-offset: 3px; }
+    .photo-admin-controls .photo-remove { color: #92584b; }
+    .photo-tag-editor { display: flex; flex-wrap: wrap; gap: 8px; }
+    .photo-tag-editor[hidden] { display: none; }
+    .photo-tag-editor input { flex: 1 1 150px; min-width: 0; min-height: 32px; padding: 6px 8px; border: 1px solid var(--line); background: white; font: 10px var(--sans); }
+    .photo-tag-editor button { align-self: center; }
 
     .site-footer { min-height: 72px; padding: 0 6.1%; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid var(--line); color: var(--muted); font: 9px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
     .lightbox { position: fixed; z-index: 5; inset: 0; display: none; align-items: center; justify-content: center; padding: 28px; background: rgba(25,27,24,.94); }
@@ -110,6 +121,7 @@
     .lightbox-next { right: 27px; }
 
     @keyframes appear { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes upload-progress { from { transform: translateX(-8%); } to { transform: translateX(175%); } }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
     @media (max-width: 900px) { .gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); } .photo-card:nth-child(n) .photo-button { aspect-ratio: 1 / 1.12; } .photo-card:nth-child(3n + 2) .photo-button { aspect-ratio: 1 / 1.3; } }
     @media (max-width: 600px) {
@@ -187,6 +199,7 @@
         </label>
         <button class="upload-submit" id="upload-submit" type="submit">Upload photo</button>
       </form>
+      <div class="upload-progress" id="upload-progress" role="progressbar" aria-label="Photo upload progress" aria-valuetext="Preparing upload" hidden><span></span></div>
       <p class="upload-status" id="upload-status" role="status" aria-live="polite"></p>
     </section>
 
@@ -357,7 +370,9 @@
     const loginSubmit = document.querySelector('.login-submit');
     const uploadForm = document.querySelector('#upload-form');
     const uploadStatus = document.querySelector('#upload-status');
+    const uploadProgress = document.querySelector('#upload-progress');
     const uploadSubmit = document.querySelector('#upload-submit');
+    const maxImageSize = 10 * 1024 * 1024;
     const supabaseSettings = window.FIELD_NOTES_SUPABASE ?? {};
     const supabaseClient = window.supabase && supabaseSettings.url && supabaseSettings.anonKey
       ? window.supabase.createClient(supabaseSettings.url, supabaseSettings.anonKey)
@@ -367,6 +382,7 @@
     let currentIndex = 0;
     let returnFocus = null;
     let verifiedAdminId = null;
+    let adminMode = false;
 
     function formatTag(tag) {
       return tag.split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
@@ -451,6 +467,8 @@
       if (photo.id) loadedPhotoIds.add(photo.id);
       const article = document.createElement('article');
       article.className = 'photo-card';
+      article.dataset.photoId = photo.id;
+      article.dataset.storagePath = photo.storage_path;
       article.dataset.tags = photo.tags.join(' ');
 
       const photoButton = document.createElement('button');
@@ -485,10 +503,121 @@
       });
       caption.append(title, tags);
       article.append(photoButton, caption);
+      if (adminMode) addPhotoAdminControls(article);
       photoButton.addEventListener('click', () => openLightbox(article));
       gallery.prepend(article);
       cards.unshift(article);
       applyTagFilters();
+    }
+
+    function renderCardTags(article, tags) {
+      article.dataset.tags = tags.join(' ');
+      const tagList = article.querySelector('.photo-tags');
+      tagList.replaceChildren();
+      tags.forEach((tag) => {
+        registerTag(tag);
+        const chip = document.createElement('span');
+        chip.className = 'photo-tag';
+        chip.textContent = formatTag(tag);
+        tagList.append(chip);
+      });
+    }
+
+    function addPhotoAdminControls(article) {
+      if (article.querySelector('.photo-admin-controls')) return;
+      const caption = article.querySelector('.photo-caption');
+      const controls = document.createElement('div');
+      controls.className = 'photo-admin-controls';
+
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.textContent = 'Edit tags';
+      editButton.setAttribute('aria-label', `Edit tags for ${article.querySelector('.photo-title').textContent}`);
+
+      const removeButton = document.createElement('button');
+      removeButton.className = 'photo-remove';
+      removeButton.type = 'button';
+      removeButton.textContent = 'Remove photo';
+      removeButton.setAttribute('aria-label', `Remove ${article.querySelector('.photo-title').textContent}`);
+      controls.append(editButton, removeButton);
+
+      const editor = document.createElement('form');
+      editor.className = 'photo-tag-editor';
+      editor.hidden = true;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.setAttribute('aria-label', 'Photo tags, separated by commas');
+      input.value = article.dataset.tags.split(' ').map(formatTag).join(', ');
+      const saveButton = document.createElement('button');
+      saveButton.type = 'submit';
+      saveButton.textContent = 'Save';
+      const cancelButton = document.createElement('button');
+      cancelButton.type = 'button';
+      cancelButton.textContent = 'Cancel';
+      editor.append(input, saveButton, cancelButton);
+      caption.append(controls, editor);
+
+      editButton.addEventListener('click', () => {
+        controls.hidden = true;
+        editor.hidden = false;
+        input.focus();
+      });
+      cancelButton.addEventListener('click', () => {
+        editor.hidden = true;
+        controls.hidden = false;
+      });
+      editor.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const tags = [...new Set(input.value.split(',').map(normalizeTag).filter(Boolean))];
+        if (tags.length === 0) {
+          uploadStatus.textContent = 'Add at least one tag before saving.';
+          return;
+        }
+        saveButton.disabled = true;
+        const { error } = await supabaseClient.from('photos').update({ tags }).eq('id', article.dataset.photoId);
+        saveButton.disabled = false;
+        if (error) {
+          uploadStatus.textContent = `Could not update tags: ${error.message}`;
+          return;
+        }
+        renderCardTags(article, tags);
+        applyTagFilters();
+        editor.hidden = true;
+        controls.hidden = false;
+        uploadStatus.textContent = 'Photo tags updated.';
+      });
+      removeButton.addEventListener('click', async () => {
+        const title = article.querySelector('.photo-title').textContent;
+        if (!window.confirm(`Remove "${title}" from the gallery? This cannot be undone.`)) return;
+        removeButton.disabled = true;
+        uploadStatus.textContent = 'Removing photo…';
+        const { error } = await supabaseClient.from('photos').delete().eq('id', article.dataset.photoId);
+        if (error) {
+          removeButton.disabled = false;
+          uploadStatus.textContent = `Could not remove photo: ${error.message}`;
+          return;
+        }
+        const storagePath = article.dataset.storagePath;
+        const photoId = article.dataset.photoId;
+        cards = cards.filter((card) => card !== article);
+        loadedPhotoIds.delete(photoId);
+        article.remove();
+        applyTagFilters();
+        const { error: storageError } = await supabaseClient.storage.from('gallery').remove([storagePath]);
+        uploadStatus.textContent = storageError
+          ? `Photo removed from the gallery, but its stored image could not be deleted: ${storageError.message}`
+          : 'Photo removed from the gallery.';
+      });
+    }
+
+    function setPhotoAdminMode(enabled) {
+      adminMode = enabled;
+      cards.forEach((card) => {
+        if (!card.dataset.photoId) return;
+        if (enabled) addPhotoAdminControls(card);
+        else card.querySelector('.photo-admin-controls')?.remove();
+        if (!enabled) card.querySelector('.photo-tag-editor')?.remove();
+      });
     }
 
     async function loadUploadedPhotos() {
@@ -510,6 +639,7 @@
     async function verifyAdminSession(session) {
       if (!session || !supabaseClient) {
         verifiedAdminId = null;
+        setPhotoAdminMode(false);
         adminPanel.hidden = true;
         adminButton.textContent = 'Admin sign in';
         return false;
@@ -526,6 +656,7 @@
           return false;
         }
         verifiedAdminId = session.user.id;
+        setPhotoAdminMode(true);
         adminAccount.textContent = session.user.email;
         adminButton.textContent = 'Manage photos';
         adminPanel.hidden = false;
@@ -590,46 +721,67 @@
       const altText = document.querySelector('#upload-alt').value.trim();
       const tags = [...new Set(document.querySelector('#upload-tags').value.split(',').map(normalizeTag).filter(Boolean))];
       const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif' };
-      if (!file || !extensions[file.type] || file.size > 10 * 1024 * 1024 || !title || !altText || tags.length === 0) {
-        uploadStatus.textContent = 'Choose a JPEG, PNG, WebP, or AVIF under 10 MB, and add a title, description, and at least one tag.';
+      if (!file) {
+        uploadStatus.textContent = 'Choose a photo file to upload.';
+        return;
+      }
+      if (file.size > maxImageSize) {
+        uploadStatus.textContent = `This photo is ${(file.size / (1024 * 1024)).toFixed(1)} MB. The maximum size is 10 MB.`;
+        return;
+      }
+      if (!extensions[file.type]) {
+        uploadStatus.textContent = 'Unsupported photo type. Choose a JPEG, PNG, WebP, or AVIF image.';
+        return;
+      }
+      if (!title || !altText || tags.length === 0) {
+        uploadStatus.textContent = 'Add a title, image description, and at least one tag.';
         return;
       }
 
       uploadSubmit.disabled = true;
-      uploadStatus.textContent = 'Uploading photo…';
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-      if (userError || !userData.user) {
-        uploadStatus.textContent = 'Your session expired. Sign in again to upload.';
-        uploadSubmit.disabled = false;
-        return;
-      }
+      uploadProgress.hidden = false;
+      uploadProgress.setAttribute('aria-valuetext', 'Checking sign-in');
+      uploadStatus.textContent = 'Checking your sign-in…';
+      try {
+        const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+        if (userError || !userData.user) {
+          uploadStatus.textContent = 'Your session expired. Sign in again to upload.';
+          return;
+        }
 
-      const storagePath = `${userData.user.id}/${crypto.randomUUID()}.${extensions[file.type]}`;
-      const { error: storageError } = await supabaseClient.storage.from('gallery').upload(storagePath, file, {
-        cacheControl: '3600',
-        contentType: file.type,
-        upsert: false
-      });
-      if (storageError) {
-        uploadStatus.textContent = storageError.message;
-        uploadSubmit.disabled = false;
-        return;
-      }
+        const storagePath = `${userData.user.id}/${crypto.randomUUID()}.${extensions[file.type]}`;
+        uploadProgress.setAttribute('aria-valuetext', 'Uploading image');
+        uploadStatus.textContent = `Uploading ${file.name}…`;
+        const { error: storageError } = await supabaseClient.storage.from('gallery').upload(storagePath, file, {
+          cacheControl: '3600',
+          contentType: file.type,
+          upsert: false
+        });
+        if (storageError) {
+          uploadStatus.textContent = storageError.message;
+          return;
+        }
 
-      const photo = { title, alt_text: altText, tags, storage_path: storagePath, created_by: userData.user.id };
-      const { data: savedPhoto, error: insertError } = await supabaseClient.from('photos').insert(photo).select().single();
-      if (insertError) {
-        await supabaseClient.storage.from('gallery').remove([storagePath]);
-        uploadStatus.textContent = insertError.message;
-        uploadSubmit.disabled = false;
-        return;
-      }
+        uploadProgress.setAttribute('aria-valuetext', 'Saving photo details');
+        uploadStatus.textContent = 'Image uploaded. Saving its title and tags…';
+        const photo = { title, alt_text: altText, tags, storage_path: storagePath, created_by: userData.user.id };
+        const { data: savedPhoto, error: insertError } = await supabaseClient.from('photos').insert(photo).select().single();
+        if (insertError) {
+          await supabaseClient.storage.from('gallery').remove([storagePath]);
+          uploadStatus.textContent = insertError.message;
+          return;
+        }
 
-      const { data: image } = supabaseClient.storage.from('gallery').getPublicUrl(savedPhoto.storage_path);
-      createUploadedCard(savedPhoto, image.publicUrl);
-      uploadForm.reset();
-      uploadStatus.textContent = 'Photo uploaded and added to the gallery.';
-      uploadSubmit.disabled = false;
+        const { data: image } = supabaseClient.storage.from('gallery').getPublicUrl(savedPhoto.storage_path);
+        createUploadedCard(savedPhoto, image.publicUrl);
+        uploadForm.reset();
+        uploadStatus.textContent = 'Photo uploaded and added to the gallery.';
+      } catch (error) {
+        uploadStatus.textContent = `Upload failed: ${error.message || 'Network error'}`;
+      } finally {
+        uploadProgress.hidden = true;
+        uploadSubmit.disabled = false;
+      }
     });
 
     if (supabaseClient) {

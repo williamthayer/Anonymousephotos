@@ -26,4 +26,6 @@ The site is static and can be published from this repository with GitHub Pages. 
 6. Commit the site files and enable GitHub Pages for the repository's root folder.
 7. Open the published site and choose **Admin sign in** to upload photos. Add a title, an accessible image description, and comma-separated tags.
 
+If you already ran the setup SQL, run the updated `supabase-setup.sql` again after changes so the current storage policies are applied. Signed-in admins can edit tags or remove uploaded photos from the gallery. The built-in sample photos are not stored in Supabase and cannot be managed from the admin panel.
+
 The public key is intended for browser use. The SQL policies make the gallery readable publicly but allow writes only for user IDs in `gallery_admins`. Never put a Supabase `service_role` or secret key in this repository. Uploaded images are public because they appear in the public gallery. Uploads accept JPEG, PNG, WebP, or AVIF files up to 10 MB.

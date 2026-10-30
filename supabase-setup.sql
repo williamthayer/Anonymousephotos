@@ -105,5 +105,4 @@ create policy "Gallery admins can delete images"
   using (
     bucket_id = 'gallery'
     and public.is_gallery_admin()
-    and (storage.foldername(name))[1] = (select auth.uid())::text
   );
