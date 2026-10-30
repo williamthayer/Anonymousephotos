@@ -354,6 +354,7 @@
     const loginDialog = document.querySelector('#login-dialog');
     const loginForm = document.querySelector('#login-form');
     const loginStatus = document.querySelector('#login-status');
+    const loginSubmit = document.querySelector('.login-submit');
     const uploadForm = document.querySelector('#upload-form');
     const uploadStatus = document.querySelector('#upload-status');
     const uploadSubmit = document.querySelector('#upload-submit');
@@ -511,23 +512,31 @@
         verifiedAdminId = null;
         adminPanel.hidden = true;
         adminButton.textContent = 'Admin sign in';
-        return;
+        return false;
       }
-      if (session.user.id === verifiedAdminId) return;
+      if (session.user.id === verifiedAdminId) return true;
       adminPanel.hidden = true;
-      const { data, error } = await supabaseClient.rpc('is_gallery_admin');
-      if (error || !data) {
-        loginStatus.textContent = 'This account is not authorized to manage the gallery.';
-        await supabaseClient.auth.signOut();
-        return;
+      try {
+        const { data, error } = await supabaseClient.rpc('is_gallery_admin');
+        if (error || !data) {
+          loginStatus.textContent = error
+            ? `Could not verify admin access: ${error.message}`
+            : 'This account is not authorized to manage the gallery.';
+          await supabaseClient.auth.signOut();
+          return false;
+        }
+        verifiedAdminId = session.user.id;
+        adminAccount.textContent = session.user.email;
+        adminButton.textContent = 'Manage photos';
+        adminPanel.hidden = false;
+        loginStatus.textContent = '';
+        loginDialog.close();
+        await loadUploadedPhotos();
+        return true;
+      } catch (error) {
+        loginStatus.textContent = `Could not verify admin access: ${error.message || 'Network error'}`;
+        return false;
       }
-      verifiedAdminId = session.user.id;
-      adminAccount.textContent = session.user.email;
-      adminButton.textContent = 'Manage photos';
-      adminPanel.hidden = false;
-      loginStatus.textContent = '';
-      loginDialog.close();
-      await loadUploadedPhotos();
     }
 
     adminButton.addEventListener('click', () => {
@@ -554,8 +563,19 @@
       const email = document.querySelector('#login-email').value.trim();
       const password = document.querySelector('#login-password').value;
       loginStatus.textContent = 'Signing in…';
-      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (error) loginStatus.textContent = error.message;
+      loginSubmit.disabled = true;
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) {
+          loginStatus.textContent = error.message;
+          return;
+        }
+        await verifyAdminSession(data.session);
+      } catch (error) {
+        loginStatus.textContent = `Sign-in failed: ${error.message || 'Network error'}`;
+      } finally {
+        loginSubmit.disabled = false;
+      }
     });
 
     document.querySelector('#admin-signout').addEventListener('click', async () => {
