@@ -404,6 +404,10 @@
         return [...selectedTags].every((tag) => photoTags.includes(tag));
       });
       cards.forEach((card) => { card.hidden = !visibleCards.includes(card); });
+      const availableTags = new Set(visibleCards.flatMap((card) => card.dataset.tags ? card.dataset.tags.split(' ') : []));
+      tagButtons.forEach((button) => {
+        button.hidden = !availableTags.has(button.dataset.tag) && !selectedTags.has(button.dataset.tag);
+      });
       photoCount.textContent = `${visibleCards.length} ${visibleCards.length === 1 ? 'photograph' : 'photographs'}`;
       clearTagsButton.disabled = selectedTags.size === 0;
     }
