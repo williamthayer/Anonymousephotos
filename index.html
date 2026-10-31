@@ -622,6 +622,33 @@
       if (supabaseClient) await supabaseClient.auth.signOut();
     });
 
+    async function reencodeWithoutMetadata(file) {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        bitmap.close();
+        throw new Error('This browser could not prepare the image safely.');
+      }
+      context.drawImage(bitmap, 0, 0);
+      bitmap.close();
+
+      const sanitizedFile = await new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (!blob || blob.type !== 'image/webp') {
+            reject(new Error('This browser could not create a metadata-free WebP image.'));
+            return;
+          }
+          resolve(blob);
+        }, 'image/webp', 0.92);
+      });
+      canvas.width = 0;
+      canvas.height = 0;
+      return sanitizedFile;
+    }
+
     uploadForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!supabaseClient) return;
@@ -669,12 +696,20 @@
           return;
         }
 
-        const storagePath = `${userData.user.id}/${crypto.randomUUID()}.${extensions[file.type]}`;
+        uploadProgress.setAttribute('aria-valuetext', 'Re-encoding image without metadata');
+        uploadStatus.textContent = `Removing metadata from ${file.name}…`;
+        const sanitizedFile = await reencodeWithoutMetadata(file);
+        if (sanitizedFile.size > maxImageSize) {
+          uploadStatus.textContent = `The metadata-free image is ${(sanitizedFile.size / (1024 * 1024)).toFixed(1)} MB. The maximum size is 10 MB.`;
+          return;
+        }
+
+        const storagePath = `${userData.user.id}/${crypto.randomUUID()}.webp`;
         uploadProgress.setAttribute('aria-valuetext', 'Uploading image');
-        uploadStatus.textContent = `Uploading ${file.name}…`;
-        const { error: storageError } = await supabaseClient.storage.from('gallery').upload(storagePath, file, {
+        uploadStatus.textContent = `Uploading metadata-free image ${file.name}…`;
+        const { error: storageError } = await supabaseClient.storage.from('gallery').upload(storagePath, sanitizedFile, {
           cacheControl: '3600',
-          contentType: file.type,
+          contentType: sanitizedFile.type,
           upsert: false
         });
         if (storageError) {
