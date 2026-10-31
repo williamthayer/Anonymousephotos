@@ -335,6 +335,24 @@
       return parsed.href;
     }
 
+    const orientationTags = new Set(['vertical', 'horizontal', 'square']);
+
+    function detectOrientationTag(sourceUrl) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => {
+          if (image.naturalWidth === image.naturalHeight) resolve('square');
+          else resolve(image.naturalWidth > image.naturalHeight ? 'horizontal' : 'vertical');
+        };
+        image.onerror = () => reject(new Error('Could not read image dimensions. Use a direct, publicly accessible image URL.'));
+        image.src = sourceUrl;
+      });
+    }
+
+    function withOrientationTag(tags, orientation) {
+      return [...new Set([...tags.filter((tag) => !orientationTags.has(tag)), orientation])];
+    }
+
     function bindTagButton(button) {
       button.addEventListener('click', () => {
         const tag = button.dataset.tag;
@@ -496,6 +514,11 @@
       const editor = document.createElement('form');
       editor.className = 'photo-tag-editor';
       editor.hidden = true;
+      const titleInput = document.createElement('input');
+      titleInput.type = 'text';
+      titleInput.maxLength = 100;
+      titleInput.setAttribute('aria-label', 'Photo title');
+      titleInput.value = article.querySelector('.photo-title').textContent;
       const input = document.createElement('input');
       input.type = 'text';
       input.setAttribute('aria-label', 'Photo tags, separated by commas');
@@ -516,7 +539,7 @@
       const cancelButton = document.createElement('button');
       cancelButton.type = 'button';
       cancelButton.textContent = 'Cancel';
-      editor.append(input, replaceField, saveButton, cancelButton);
+      editor.append(titleInput, input, replaceField, saveButton, cancelButton);
       caption.append(controls, editor);
 
       editButton.addEventListener('click', () => {
@@ -530,8 +553,13 @@
       });
       editor.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const tags = [...new Set(input.value.split(',').map(normalizeTag).filter(Boolean))];
+        const title = titleInput.value.trim();
+        let tags = [...new Set(input.value.split(',').map(normalizeTag).filter(Boolean))];
         const replacementSource = replaceInput.value.trim();
+        if (!title) {
+          uploadStatus.textContent = 'Enter a photo title before saving.';
+          return;
+        }
         if (tags.length === 0) {
           uploadStatus.textContent = 'Add at least one tag before saving.';
           return;
@@ -548,19 +576,30 @@
         saveButton.disabled = true;
         try {
           const previousStoragePath = article.dataset.storagePath;
-          let update = { tags };
+          let update = { title, alt_text: title, tags };
           const imageChanged = normalizedReplacement && normalizedReplacement !== article.dataset.imageUrl;
           if (imageChanged) {
-            update = { ...update, image_url: normalizedReplacement, storage_path: null };
+            uploadStatus.textContent = 'Checking replacement image orientation…';
+            const orientation = await detectOrientationTag(normalizedReplacement);
+            tags = withOrientationTag(tags, orientation);
+            update = { ...update, tags, image_url: normalizedReplacement, storage_path: null };
           }
 
-          uploadStatus.textContent = imageChanged ? 'Saving photo source and tags…' : 'Saving tags…';
+          uploadStatus.textContent = imageChanged ? 'Saving photo details…' : 'Saving title and tags…';
           const { error } = await supabaseClient.from('photos').update(update).eq('id', article.dataset.photoId);
           if (error) {
             uploadStatus.textContent = `Could not update photo: ${error.message}`;
             return;
           }
 
+          const titleElement = article.querySelector('.photo-title');
+          const titleLink = titleElement.querySelector('a');
+          if (titleLink) titleLink.textContent = title;
+          else titleElement.textContent = title;
+          article.querySelector('.photo-button').setAttribute('aria-label', `View ${title}`);
+          article.querySelector('.photo-button img').alt = title;
+          editButton.setAttribute('aria-label', `Edit photo details for ${title}`);
+          removeButton.setAttribute('aria-label', `Remove ${title}`);
           renderCardTags(article, tags);
           if (imageChanged) {
             article.querySelector('.photo-button img').src = normalizedReplacement;
@@ -579,7 +618,7 @@
           } else if (imageChanged) {
             uploadStatus.textContent = 'Photo source and tags updated.';
           } else {
-            uploadStatus.textContent = 'Photo tags updated.';
+            uploadStatus.textContent = 'Photo title and tags updated.';
           }
         } catch (error) {
           uploadStatus.textContent = `Could not update photo: ${error.message || 'Network error'}`;
@@ -635,12 +674,36 @@
         console.error('Unable to load uploaded photos:', error.message);
         return;
       }
-      data.reverse().forEach((photo) => {
+      for (const photo of data.reverse()) {
         const imageUrl = photo.image_url || (photo.storage_path
           ? supabaseClient.storage.from('gallery').getPublicUrl(photo.storage_path).data.publicUrl
           : null);
-        if (imageUrl) createUploadedCard(photo, imageUrl);
-      });
+        if (!imageUrl) continue;
+
+        let tags = photo.tags || [];
+        try {
+          const orientation = await detectOrientationTag(imageUrl);
+          const updatedTags = withOrientationTag(tags, orientation);
+          const tagsChanged = updatedTags.length !== tags.length || updatedTags.some((tag, index) => tag !== tags[index]);
+          if (tagsChanged) {
+            tags = updatedTags;
+            if (adminMode) {
+              const { error: tagError } = await supabaseClient.from('photos').update({ tags }).eq('id', photo.id);
+              if (tagError) console.error('Unable to save photo orientation tag:', tagError.message);
+            }
+          }
+        } catch (orientationError) {
+          console.warn('Unable to detect photo orientation:', orientationError.message);
+        }
+
+        const existingCard = cards.find((card) => card.dataset.photoId === photo.id);
+        if (existingCard) {
+          renderCardTags(existingCard, tags);
+          applyTagFilters();
+        } else {
+          createUploadedCard({ ...photo, tags }, imageUrl);
+        }
+      }
     }
 
     async function verifyAdminSession(session) {
@@ -726,7 +789,7 @@
       const title = document.querySelector('#upload-title').value.trim();
       const sourceInput = document.querySelector('#upload-source').value;
       const linkInput = document.querySelector('#upload-link').value;
-      const tags = [...new Set(document.querySelector('#upload-tags').value.split(',').map(normalizeTag).filter(Boolean))];
+      let tags = [...new Set(document.querySelector('#upload-tags').value.split(',').map(normalizeTag).filter(Boolean))];
       if (!title || tags.length === 0) {
         uploadStatus.textContent = 'Add a title and at least one tag.';
         return;
@@ -752,6 +815,11 @@
           uploadStatus.textContent = 'Your session expired. Sign in again to add a photo.';
           return;
         }
+
+        uploadProgress.setAttribute('aria-valuetext', 'Checking photo orientation');
+        uploadStatus.textContent = 'Checking photo orientation…';
+        const orientation = await detectOrientationTag(normalizedImageUrl);
+        tags = withOrientationTag(tags, orientation);
 
         uploadStatus.textContent = 'Saving photo links and tags…';
         const photo = {

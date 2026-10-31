@@ -24,7 +24,7 @@ The site is static and can be published from this repository with GitHub Pages. 
    ```
 
 6. Commit the site files and enable GitHub Pages for the repository's root folder.
-7. Open the published site and choose **Admin sign in** to add photos. Enter a direct, publicly reachable photo source URL, a title, an optional title destination URL, and comma-separated tags. The displayed title links to its destination when provided.
+7. Open the published site and choose **Admin sign in** to add photos. Enter a direct, publicly reachable photo source URL, a title, an optional title destination URL, and comma-separated tags. The displayed title links to its destination when provided. The site reads image dimensions and adds a `vertical`, `horizontal`, or `square` tag automatically.
 
 If you already ran the setup SQL, run the updated `supabase-setup.sql` again after changes. It adds `image_url` and makes the old `storage_path` optional. New entries store URL metadata in Supabase; their image files stay on the linked image host. Existing Storage-backed photos continue to display until you replace their source URL in **Edit photo**, which then removes the old Storage object. Signed-in admins can edit tags, replace image URLs, or remove photos from the gallery.
 
