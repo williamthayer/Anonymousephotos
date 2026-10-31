@@ -264,6 +264,7 @@
         this.mouse.clearTint();
         this.mouse.body.setAllowGravity(false);
         this.traps.clear(true, true);
+        this.squeakAudioContext ??= null;
         this.overlay.setVisible(true);
         this.overlayTitle.setText('MOUSE RUN');
         this.overlayPrompt.setText('START RUN');
@@ -281,10 +282,42 @@
           this.mouse.body.setAllowGravity(true);
           this.mouse.body.setGravityY(1500);
           this.spawnTrap();
-          this.nextTrapAt = Phaser.Math.Between(620, 1250);
+          this.nextTrapAt = Phaser.Math.Between(400, 1200);
           return;
         }
-        if (this.mouse.body.blocked.down || this.mouse.body.touching.down) this.mouse.setVelocityY(-650);
+        if (this.mouse.body.blocked.down || this.mouse.body.touching.down) {
+          this.mouse.setVelocityY(-650);
+          this.playJumpSqueak();
+        }
+      }
+
+      playJumpSqueak() {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        try {
+          this.squeakAudioContext ??= new AudioContextClass();
+          const audio = this.squeakAudioContext;
+          const play = () => {
+            const now = audio.currentTime;
+            const squeak = audio.createOscillator();
+            const volume = audio.createGain();
+            squeak.type = 'sine';
+            squeak.frequency.setValueAtTime(1150, now);
+            squeak.frequency.exponentialRampToValueAtTime(1750, now + 0.06);
+            squeak.frequency.exponentialRampToValueAtTime(950, now + 0.2);
+            volume.gain.setValueAtTime(0.0001, now);
+            volume.gain.exponentialRampToValueAtTime(0.055, now + 0.015);
+            volume.gain.exponentialRampToValueAtTime(0.0001, now + 0.21);
+            squeak.connect(volume);
+            volume.connect(audio.destination);
+            squeak.start(now);
+            squeak.stop(now + 0.22);
+          };
+          if (audio.state === 'suspended') void audio.resume().then(play).catch(() => {});
+          else play();
+        } catch {
+          return;
+        }
       }
 
       spawnTrap() {
@@ -329,7 +362,7 @@
         this.speed = Math.min(570, 360 + Math.floor(this.score / 50) * 18);
         if (this.worldDistance >= this.nextTrapAt) {
           this.spawnTrap();
-          this.nextTrapAt = this.worldDistance + Phaser.Math.Between(620, 1250);
+          this.nextTrapAt = this.worldDistance + Phaser.Math.Between(400, 1200);
         }
         this.traps.children.iterate((trap) => {
           if (trap && trap.x < -100) trap.destroy();

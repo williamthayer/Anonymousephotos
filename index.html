@@ -101,18 +101,21 @@
     .photo-card:nth-child(7n + 1) .photo-button { aspect-ratio: 1 / 1.25; }
     .photo-button img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .65s cubic-bezier(.2,.7,.2,1), filter .35s ease; }
     .photo-button:hover img { transform: scale(1.045); filter: saturate(.88); }
-    .photo-caption { display: flex; flex-direction: column; gap: 8px; padding-top: 11px; }
+    .photo-caption { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 55%); align-items: start; gap: 8px; padding-top: 11px; }
     .photo-title { margin: 0; overflow: hidden; font: 500 14px var(--serif); text-overflow: ellipsis; white-space: nowrap; }
     .photo-title a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
     .photo-title a:hover { color: var(--moss); text-decoration-color: currentColor; }
-    .photo-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .photo-tags { min-width: 0; max-width: 100%; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
     .photo-tag { padding: 4px 6px; border: 1px solid var(--line); color: var(--muted); font: 8px var(--mono); letter-spacing: .02em; }
+    .photo-admin-controls, .photo-tag-editor { grid-column: 1 / -1; }
     .photo-admin-controls { display: flex; align-items: center; gap: 12px; }
     .photo-admin-controls button, .photo-tag-editor button { padding: 0; border: 0; background: transparent; color: var(--moss); cursor: pointer; font: 9px var(--mono); text-decoration: underline; text-underline-offset: 3px; }
     .photo-admin-controls .photo-remove { color: #92584b; }
     .photo-tag-editor { display: flex; flex-wrap: wrap; gap: 8px; }
     .photo-tag-editor[hidden] { display: none; }
     .photo-tag-editor input { flex: 1 1 150px; min-width: 0; min-height: 32px; padding: 6px 8px; border: 1px solid var(--line); background: white; font: 10px var(--sans); }
+    .photo-replace-field { flex: 1 1 100%; display: grid; gap: 5px; color: var(--muted); font: 8px var(--mono); text-transform: uppercase; }
+    .photo-replace-field input { width: 100%; min-width: 0; font: 10px var(--sans); text-transform: none; }
     .photo-tag-editor button { align-self: center; }
     .gallery-empty { padding: 30px 0 76px; color: var(--muted); font: 12px var(--mono); }
     .gallery-empty[hidden] { display: none; }
@@ -212,8 +215,8 @@
         <button class="admin-signout" id="admin-signout" type="button">Sign out</button>
       </div>
       <form class="upload-form" id="upload-form">
-        <label class="form-field">Photo file
-          <input id="upload-file" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required>
+        <label class="form-field">Photo source URL
+          <input id="upload-source" name="source" type="text" inputmode="url" placeholder="https://images.example.com/photo.jpg" autocomplete="url" required>
         </label>
         <label class="form-field">Title
           <input id="upload-title" name="title" type="text" maxlength="100" required>
@@ -224,9 +227,9 @@
         <label class="form-field">Tags, separated by commas
           <input id="upload-tags" name="tags" type="text" placeholder="forest, sunrise, mountains" required>
         </label>
-        <button class="upload-submit" id="upload-submit" type="submit">Upload photo</button>
+        <button class="upload-submit" id="upload-submit" type="submit">Add photo</button>
       </form>
-      <div class="upload-progress" id="upload-progress" role="progressbar" aria-label="Photo upload progress" aria-valuetext="Preparing upload" hidden><span></span></div>
+        <div class="upload-progress" id="upload-progress" role="progressbar" aria-label="Saving photo details" aria-valuetext="Preparing save" hidden><span></span></div>
       <p class="upload-status" id="upload-status" role="status" aria-live="polite"></p>
     </section>
 
@@ -296,7 +299,6 @@
     const uploadStatus = document.querySelector('#upload-status');
     const uploadProgress = document.querySelector('#upload-progress');
     const uploadSubmit = document.querySelector('#upload-submit');
-    const maxImageSize = 10 * 1024 * 1024;
     const supabaseSettings = window.FIELD_NOTES_SUPABASE ?? {};
     const supabaseClient = window.supabase && supabaseSettings.url && supabaseSettings.anonKey
       ? window.supabase.createClient(supabaseSettings.url, supabaseSettings.anonKey)
@@ -411,7 +413,8 @@
       const article = document.createElement('article');
       article.className = 'photo-card';
       article.dataset.photoId = photo.id;
-      article.dataset.storagePath = photo.storage_path;
+      article.dataset.storagePath = photo.storage_path || '';
+      article.dataset.imageUrl = photo.image_url || imageUrl;
       article.dataset.tags = photo.tags.join(' ');
 
       const photoButton = document.createElement('button');
@@ -480,8 +483,8 @@
 
       const editButton = document.createElement('button');
       editButton.type = 'button';
-      editButton.textContent = 'Edit tags';
-      editButton.setAttribute('aria-label', `Edit tags for ${article.querySelector('.photo-title').textContent}`);
+      editButton.textContent = 'Edit photo';
+      editButton.setAttribute('aria-label', `Edit photo details for ${article.querySelector('.photo-title').textContent}`);
 
       const removeButton = document.createElement('button');
       removeButton.className = 'photo-remove';
@@ -497,13 +500,23 @@
       input.type = 'text';
       input.setAttribute('aria-label', 'Photo tags, separated by commas');
       input.value = article.dataset.tags.split(' ').map(formatTag).join(', ');
+      const replaceField = document.createElement('label');
+      replaceField.className = 'photo-replace-field';
+      replaceField.append(document.createTextNode('Replace image source URL (optional)'));
+      const replaceInput = document.createElement('input');
+      replaceInput.type = 'text';
+      replaceInput.inputMode = 'url';
+      replaceInput.placeholder = 'https://images.example.com/photo.jpg';
+      replaceInput.autocomplete = 'url';
+      replaceInput.setAttribute('aria-label', 'Replacement image source URL');
+      replaceField.append(replaceInput);
       const saveButton = document.createElement('button');
       saveButton.type = 'submit';
       saveButton.textContent = 'Save';
       const cancelButton = document.createElement('button');
       cancelButton.type = 'button';
       cancelButton.textContent = 'Cancel';
-      editor.append(input, saveButton, cancelButton);
+      editor.append(input, replaceField, saveButton, cancelButton);
       caption.append(controls, editor);
 
       editButton.addEventListener('click', () => {
@@ -518,22 +531,61 @@
       editor.addEventListener('submit', async (event) => {
         event.preventDefault();
         const tags = [...new Set(input.value.split(',').map(normalizeTag).filter(Boolean))];
+        const replacementSource = replaceInput.value.trim();
         if (tags.length === 0) {
           uploadStatus.textContent = 'Add at least one tag before saving.';
           return;
         }
-        saveButton.disabled = true;
-        const { error } = await supabaseClient.from('photos').update({ tags }).eq('id', article.dataset.photoId);
-        saveButton.disabled = false;
-        if (error) {
-          uploadStatus.textContent = `Could not update tags: ${error.message}`;
-          return;
+        let normalizedReplacement = null;
+        if (replacementSource) {
+          try {
+            normalizedReplacement = normalizeTitleLink(replacementSource);
+          } catch (error) {
+            uploadStatus.textContent = `Invalid photo source URL: ${error.message}`;
+            return;
+          }
         }
-        renderCardTags(article, tags);
-        applyTagFilters();
-        editor.hidden = true;
-        controls.hidden = false;
-        uploadStatus.textContent = 'Photo tags updated.';
+        saveButton.disabled = true;
+        try {
+          const previousStoragePath = article.dataset.storagePath;
+          let update = { tags };
+          const imageChanged = normalizedReplacement && normalizedReplacement !== article.dataset.imageUrl;
+          if (imageChanged) {
+            update = { ...update, image_url: normalizedReplacement, storage_path: null };
+          }
+
+          uploadStatus.textContent = imageChanged ? 'Saving photo source and tags…' : 'Saving tags…';
+          const { error } = await supabaseClient.from('photos').update(update).eq('id', article.dataset.photoId);
+          if (error) {
+            uploadStatus.textContent = `Could not update photo: ${error.message}`;
+            return;
+          }
+
+          renderCardTags(article, tags);
+          if (imageChanged) {
+            article.querySelector('.photo-button img').src = normalizedReplacement;
+            article.dataset.imageUrl = normalizedReplacement;
+            article.dataset.storagePath = '';
+          }
+          applyTagFilters();
+          editor.hidden = true;
+          controls.hidden = false;
+
+          if (imageChanged && previousStoragePath) {
+            const { error: cleanupError } = await supabaseClient.storage.from('gallery').remove([previousStoragePath]);
+            uploadStatus.textContent = cleanupError
+              ? `Photo replaced, but the old image could not be removed: ${cleanupError.message}`
+              : 'Photo source and tags updated.';
+          } else if (imageChanged) {
+            uploadStatus.textContent = 'Photo source and tags updated.';
+          } else {
+            uploadStatus.textContent = 'Photo tags updated.';
+          }
+        } catch (error) {
+          uploadStatus.textContent = `Could not update photo: ${error.message || 'Network error'}`;
+        } finally {
+          saveButton.disabled = false;
+        }
       });
       removeButton.addEventListener('click', async () => {
         const title = article.querySelector('.photo-title').textContent;
@@ -552,10 +604,14 @@
         loadedPhotoIds.delete(photoId);
         article.remove();
         applyTagFilters();
-        const { error: storageError } = await supabaseClient.storage.from('gallery').remove([storagePath]);
-        uploadStatus.textContent = storageError
-          ? `Photo removed from the gallery, but its stored image could not be deleted: ${storageError.message}`
-          : 'Photo removed from the gallery.';
+        if (storagePath) {
+          const { error: storageError } = await supabaseClient.storage.from('gallery').remove([storagePath]);
+          uploadStatus.textContent = storageError
+            ? `Photo removed from the gallery, but its stored image could not be deleted: ${storageError.message}`
+            : 'Photo removed from the gallery.';
+        } else {
+          uploadStatus.textContent = 'Photo removed from the gallery.';
+        }
       });
     }
 
@@ -573,15 +629,17 @@
       if (!supabaseClient) return;
       const { data, error } = await supabaseClient
         .from('photos')
-        .select('id, title, alt_text, link_url, tags, storage_path, created_at')
+        .select('id, title, alt_text, link_url, image_url, tags, storage_path, created_at')
         .order('created_at', { ascending: false });
       if (error) {
         console.error('Unable to load uploaded photos:', error.message);
         return;
       }
       data.reverse().forEach((photo) => {
-        const { data: image } = supabaseClient.storage.from('gallery').getPublicUrl(photo.storage_path);
-        createUploadedCard(photo, image.publicUrl);
+        const imageUrl = photo.image_url || (photo.storage_path
+          ? supabaseClient.storage.from('gallery').getPublicUrl(photo.storage_path).data.publicUrl
+          : null);
+        if (imageUrl) createUploadedCard(photo, imageUrl);
       });
     }
 
@@ -662,59 +720,22 @@
       if (supabaseClient) await supabaseClient.auth.signOut();
     });
 
-    async function reencodeWithoutMetadata(file) {
-      const bitmap = await createImageBitmap(file);
-      const canvas = document.createElement('canvas');
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const context = canvas.getContext('2d');
-      if (!context) {
-        bitmap.close();
-        throw new Error('This browser could not prepare the image safely.');
-      }
-      context.drawImage(bitmap, 0, 0);
-      bitmap.close();
-
-      const sanitizedFile = await new Promise((resolve, reject) => {
-        canvas.toBlob((blob) => {
-          if (!blob || blob.type !== 'image/webp') {
-            reject(new Error('This browser could not create a metadata-free WebP image.'));
-            return;
-          }
-          resolve(blob);
-        }, 'image/webp', 0.92);
-      });
-      canvas.width = 0;
-      canvas.height = 0;
-      return sanitizedFile;
-    }
-
     uploadForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!supabaseClient) return;
-      const file = document.querySelector('#upload-file').files[0];
       const title = document.querySelector('#upload-title').value.trim();
+      const sourceInput = document.querySelector('#upload-source').value;
       const linkInput = document.querySelector('#upload-link').value;
       const tags = [...new Set(document.querySelector('#upload-tags').value.split(',').map(normalizeTag).filter(Boolean))];
-      const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif' };
-      if (!file) {
-        uploadStatus.textContent = 'Choose a photo file to upload.';
-        return;
-      }
-      if (file.size > maxImageSize) {
-        uploadStatus.textContent = `This photo is ${(file.size / (1024 * 1024)).toFixed(1)} MB. The maximum size is 10 MB.`;
-        return;
-      }
-      if (!extensions[file.type]) {
-        uploadStatus.textContent = 'Unsupported photo type. Choose a JPEG, PNG, WebP, or AVIF image.';
-        return;
-      }
       if (!title || tags.length === 0) {
         uploadStatus.textContent = 'Add a title and at least one tag.';
         return;
       }
+      let normalizedImageUrl;
       let normalizedLink;
       try {
+        normalizedImageUrl = normalizeTitleLink(sourceInput);
+        if (!normalizedImageUrl) throw new Error('Enter a photo source URL.');
         normalizedLink = normalizeTitleLink(linkInput);
       } catch (error) {
         uploadStatus.textContent = error.message;
@@ -723,52 +744,36 @@
 
       uploadSubmit.disabled = true;
       uploadProgress.hidden = false;
-      uploadProgress.setAttribute('aria-valuetext', 'Checking sign-in');
+      uploadProgress.setAttribute('aria-valuetext', 'Saving photo details');
       uploadStatus.textContent = 'Checking your sign-in…';
       try {
         const { data: userData, error: userError } = await supabaseClient.auth.getUser();
         if (userError || !userData.user) {
-          uploadStatus.textContent = 'Your session expired. Sign in again to upload.';
+          uploadStatus.textContent = 'Your session expired. Sign in again to add a photo.';
           return;
         }
 
-        uploadProgress.setAttribute('aria-valuetext', 'Re-encoding image without metadata');
-        uploadStatus.textContent = `Removing metadata from ${file.name}…`;
-        const sanitizedFile = await reencodeWithoutMetadata(file);
-        if (sanitizedFile.size > maxImageSize) {
-          uploadStatus.textContent = `The metadata-free image is ${(sanitizedFile.size / (1024 * 1024)).toFixed(1)} MB. The maximum size is 10 MB.`;
-          return;
-        }
-
-        const storagePath = `${userData.user.id}/${crypto.randomUUID()}.webp`;
-        uploadProgress.setAttribute('aria-valuetext', 'Uploading image');
-        uploadStatus.textContent = `Uploading metadata-free image ${file.name}…`;
-        const { error: storageError } = await supabaseClient.storage.from('gallery').upload(storagePath, sanitizedFile, {
-          cacheControl: '3600',
-          contentType: sanitizedFile.type,
-          upsert: false
-        });
-        if (storageError) {
-          uploadStatus.textContent = storageError.message;
-          return;
-        }
-
-        uploadProgress.setAttribute('aria-valuetext', 'Saving photo details');
-        uploadStatus.textContent = 'Image uploaded. Saving its title and tags…';
-        const photo = { title, alt_text: title, link_url: normalizedLink, tags, storage_path: storagePath, created_by: userData.user.id };
+        uploadStatus.textContent = 'Saving photo links and tags…';
+        const photo = {
+          title,
+          alt_text: title,
+          link_url: normalizedLink,
+          image_url: normalizedImageUrl,
+          tags,
+          storage_path: null,
+          created_by: userData.user.id
+        };
         const { data: savedPhoto, error: insertError } = await supabaseClient.from('photos').insert(photo).select().single();
         if (insertError) {
-          await supabaseClient.storage.from('gallery').remove([storagePath]);
           uploadStatus.textContent = insertError.message;
           return;
         }
 
-        const { data: image } = supabaseClient.storage.from('gallery').getPublicUrl(savedPhoto.storage_path);
-        createUploadedCard(savedPhoto, image.publicUrl);
+        createUploadedCard(savedPhoto, savedPhoto.image_url);
         uploadForm.reset();
-        uploadStatus.textContent = 'Photo uploaded and added to the gallery.';
+        uploadStatus.textContent = 'Photo added to the gallery.';
       } catch (error) {
-        uploadStatus.textContent = `Upload failed: ${error.message || 'Network error'}`;
+        uploadStatus.textContent = `Could not add photo: ${error.message || 'Network error'}`;
       } finally {
         uploadProgress.hidden = true;
         uploadSubmit.disabled = false;

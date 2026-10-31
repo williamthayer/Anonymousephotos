@@ -24,8 +24,8 @@ The site is static and can be published from this repository with GitHub Pages. 
    ```
 
 6. Commit the site files and enable GitHub Pages for the repository's root folder.
-7. Open the published site and choose **Admin sign in** to upload photos. Add a title, its destination URL, and comma-separated tags. The displayed title links to that URL; the title is also used as fallback image text.
+7. Open the published site and choose **Admin sign in** to add photos. Enter a direct, publicly reachable photo source URL, a title, an optional title destination URL, and comma-separated tags. The displayed title links to its destination when provided.
 
-If you already ran the setup SQL, run the updated `supabase-setup.sql` again after changes so the current storage policies are applied. Signed-in admins can edit tags or remove uploaded photos from the gallery.
+If you already ran the setup SQL, run the updated `supabase-setup.sql` again after changes. It adds `image_url` and makes the old `storage_path` optional. New entries store URL metadata in Supabase; their image files stay on the linked image host. Existing Storage-backed photos continue to display until you replace their source URL in **Edit photo**, which then removes the old Storage object. Signed-in admins can edit tags, replace image URLs, or remove photos from the gallery.
 
-The public key is intended for browser use. The SQL policies make the gallery readable publicly but allow writes only for user IDs in `gallery_admins`. Never put a Supabase `service_role` or secret key in this repository. Uploaded images are public because they appear in the public gallery. Before upload, the browser decodes each JPEG, PNG, WebP, or AVIF and re-encodes it as WebP, which removes embedded metadata such as EXIF GPS coordinates. This re-encoding is lossy at 92% quality; the resulting file must be under 10 MB.
+The public key is intended for browser use. The SQL policies make gallery metadata readable publicly but allow writes only for user IDs in `gallery_admins`. Never put a Supabase `service_role` or secret key in this repository. Photo source URLs and images are public because the gallery is public. Since new photos are no longer processed by the site, metadata and access are controlled by the external image host.
