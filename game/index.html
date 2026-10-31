@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#dcefe8">
+  <meta name="description" content="A tiny mouse, a long path, and a field full of traps.">
+  <title>Mouse Run · Anonymouse Photos</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f3f2ed;
+      --ink: #242721;
+      --muted: #777a70;
+      --line: #dcded5;
+      --moss: #526349;
+      --mono: "DM Mono", monospace;
+      --sans: "DM Sans", sans-serif;
+      --serif: "Playfair Display", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); }
+    .topbar { height: 66px; padding: 0 clamp(18px, 6vw, 78px); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .back-link { display: inline-flex; align-items: center; gap: 9px; color: var(--ink); text-decoration: none; font-size: 12px; font-weight: 600; }
+    .back-link:hover { color: var(--moss); }
+    .back-arrow { color: var(--moss); font-size: 18px; }
+    .game-mark { color: var(--muted); font: 9px var(--mono); letter-spacing: .09em; text-transform: uppercase; }
+    main { width: min(1120px, 100%); margin: 0 auto; padding: clamp(24px, 5vh, 52px) clamp(16px, 4vw, 44px) 28px; }
+    .game-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 0 auto 18px; }
+    h1 { margin: 0; font: 500 clamp(31px, 5vw, 52px)/1 var(--serif); }
+    .game-heading p { max-width: 230px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; text-align: right; }
+    .game-shell { position: relative; width: 100%; overflow: hidden; border: 1px solid rgba(36,39,33,.12); background: #dcefe8; box-shadow: 0 18px 55px rgba(49,62,47,.12); }
+    #game { width: 100%; aspect-ratio: 16 / 9; }
+    #game:focus-visible { outline: 3px solid var(--moss); outline-offset: -3px; }
+    #game canvas { display: block; width: 100% !important; height: 100% !important; object-fit: contain; }
+    .game-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 13px; color: var(--muted); font: 9px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+    .game-footer strong { color: var(--moss); font-weight: 500; }
+    a:focus-visible { outline: 2px solid var(--moss); outline-offset: 4px; }
+
+    @media (max-width: 620px) {
+      .topbar { height: 58px; }
+      .game-mark { font-size: 8px; }
+      main { padding: 25px 12px 20px; }
+      .game-heading { align-items: flex-start; flex-direction: column; gap: 8px; margin-bottom: 13px; }
+      .game-heading p { max-width: none; text-align: left; }
+      .game-shell { width: calc(100% + 24px); margin-left: -12px; border-right: 0; border-left: 0; }
+      .game-footer { font-size: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back-link" href="../"><span class="back-arrow" aria-hidden="true">←</span> Anonymouse Photos</a>
+    <span class="game-mark">Field game · No. 01</span>
+  </header>
+  <main>
+    <div class="game-heading">
+      <h1>Mouse Run</h1>
+      <p>A fake game made by a robot</p>
+    </div>
+    <div class="game-shell">
+      <div id="game" role="application" aria-label="Mouse Run game" tabindex="0"></div>
+    </div>
+    <div class="game-footer"><span><strong>Space</strong> / <strong>↑</strong> / tap to jump</span><span id="best-score">Best 0000</span></div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+  <script>
+    const GAME_WIDTH = 960;
+    const GAME_HEIGHT = 540;
+    const GROUND_Y = 420;
+    const BEST_SCORE_KEY = 'anonymouse-mouse-run-best';
+
+    class MouseRun extends Phaser.Scene {
+      constructor() {
+        super('MouseRun');
+      }
+
+      create() {
+        this.makeTextures();
+        this.drawScenery();
+        this.createPhysics();
+        this.createHud();
+        this.createOverlay();
+        this.createFlyers();
+        this.bindControls();
+        this.resetRun();
+      }
+
+      makeTextures() {
+        const mouse = this.make.graphics({ x: 0, y: 0, add: false });
+        mouse.fillStyle(0x526349, 1);
+        mouse.fillEllipse(47, 57, 55, 37);
+        mouse.fillCircle(25, 22, 18);
+        mouse.fillCircle(69, 22, 18);
+        mouse.fillStyle(0xc8897e, 1);
+        mouse.fillCircle(25, 22, 10);
+        mouse.fillCircle(69, 22, 10);
+        mouse.fillStyle(0xf3f2ed, 1);
+        mouse.fillEllipse(47, 42, 64, 51);
+        mouse.fillStyle(0x242721, 1);
+        mouse.fillCircle(36, 40, 2.7);
+        mouse.fillCircle(58, 40, 2.7);
+        mouse.fillStyle(0x92584b, 1);
+        mouse.fillEllipse(47, 48, 7, 5);
+        mouse.lineStyle(1.5, 0x526349, 1);
+        mouse.lineBetween(42, 50, 37, 55);
+        mouse.lineBetween(52, 50, 57, 55);
+        mouse.lineBetween(39, 49, 16, 45);
+        mouse.lineBetween(38, 53, 14, 54);
+        mouse.lineBetween(55, 49, 78, 45);
+        mouse.lineBetween(56, 53, 80, 54);
+        mouse.fillStyle(0xe4c972, 1);
+        mouse.fillEllipse(25, 76, 19, 8);
+        mouse.fillEllipse(70, 76, 19, 8);
+        mouse.generateTexture('mouse', 94, 84);
+        mouse.destroy();
+
+        const trap = this.make.graphics({ x: 0, y: 0, add: false });
+        trap.fillStyle(0xc85f52, 1);
+        trap.fillTriangle(0, 48, 18, 8, 36, 48);
+        trap.fillTriangle(28, 48, 48, 4, 68, 48);
+        trap.fillTriangle(60, 48, 76, 12, 92, 48);
+        trap.fillStyle(0x343b32, 1);
+        trap.fillRoundedRect(2, 45, 88, 12, 4);
+        trap.generateTexture('trap', 94, 60);
+        trap.destroy();
+
+        const bird = this.make.graphics({ x: 0, y: 0, add: false });
+        bird.lineStyle(4, 0x344c48, 1);
+        bird.beginPath();
+        bird.moveTo(2, 20);
+        bird.lineTo(13, 10);
+        bird.lineTo(25, 20);
+        bird.lineTo(38, 10);
+        bird.lineTo(50, 20);
+        bird.strokePath();
+        bird.generateTexture('bird', 52, 28);
+        bird.destroy();
+
+        const ground = this.make.graphics({ x: 0, y: 0, add: false });
+        ground.fillStyle(0xc9915c, 1);
+        ground.fillRect(0, 0, GAME_WIDTH, 140);
+        ground.fillStyle(0x788d50, 1);
+        ground.fillRect(0, 0, GAME_WIDTH, 13);
+        ground.fillStyle(0xa8734f, 1);
+        for (let x = 20; x < GAME_WIDTH; x += 73) ground.fillEllipse(x, 48 + (x % 3) * 13, 7, 3);
+        ground.fillStyle(0xedd189, 1);
+        for (let x = 12; x < GAME_WIDTH; x += 117) ground.fillCircle(x, 93 + (x % 2) * 15, 2);
+        ground.generateTexture('ground', GAME_WIDTH, 140);
+        ground.destroy();
+      }
+
+      drawScenery() {
+        const sky = this.add.graphics();
+        sky.fillStyle(0xdcefe8, 1);
+        sky.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        sky.fillStyle(0xf3cf73, 1);
+        sky.fillCircle(780, 112, 52);
+        sky.fillStyle(0xeaf0df, 1);
+        sky.fillEllipse(160, 115, 145, 34);
+        sky.fillEllipse(205, 103, 68, 36);
+        sky.fillEllipse(242, 116, 95, 29);
+        sky.fillEllipse(520, 194, 112, 26);
+        sky.fillEllipse(551, 185, 51, 26);
+        sky.fillEllipse(578, 194, 79, 24);
+        sky.fillStyle(0xa7c8a4, 1);
+        sky.fillPoints([
+          new Phaser.Geom.Point(0, 356), new Phaser.Geom.Point(92, 284),
+          new Phaser.Geom.Point(199, 346), new Phaser.Geom.Point(320, 260),
+          new Phaser.Geom.Point(455, 352), new Phaser.Geom.Point(589, 286),
+          new Phaser.Geom.Point(718, 348), new Phaser.Geom.Point(850, 273),
+          new Phaser.Geom.Point(960, 334), new Phaser.Geom.Point(960, GROUND_Y),
+          new Phaser.Geom.Point(0, GROUND_Y)
+        ], true);
+        sky.fillStyle(0x78965c, 1);
+        sky.fillPoints([
+          new Phaser.Geom.Point(0, 388), new Phaser.Geom.Point(122, 330),
+          new Phaser.Geom.Point(262, 386), new Phaser.Geom.Point(401, 317),
+          new Phaser.Geom.Point(555, 389), new Phaser.Geom.Point(733, 330),
+          new Phaser.Geom.Point(858, 383), new Phaser.Geom.Point(960, 345),
+          new Phaser.Geom.Point(960, GROUND_Y), new Phaser.Geom.Point(0, GROUND_Y)
+        ], true);
+        this.add.rectangle(GAME_WIDTH / 2, GROUND_Y + 70, GAME_WIDTH, 140, 0xc9915c).setOrigin(.5).setDepth(1);
+        this.add.rectangle(GAME_WIDTH / 2, GROUND_Y + 6, GAME_WIDTH, 12, 0x788d50).setOrigin(.5).setDepth(2);
+        this.add.rectangle(GAME_WIDTH / 2, GROUND_Y + 22, GAME_WIDTH, 4, 0xd4a164).setOrigin(.5).setDepth(2);
+        this.add.rectangle(GAME_WIDTH / 2, GROUND_Y + 37, GAME_WIDTH, 2, 0xb47c50).setOrigin(.5).setDepth(2);
+      }
+
+      createPhysics() {
+        this.ground = this.physics.add.staticImage(GAME_WIDTH / 2, GROUND_Y + 70, 'ground').setDepth(3);
+        this.mouse = this.physics.add.sprite(142, GROUND_Y - 42, 'mouse').setDepth(5);
+        this.mouse.setCollideWorldBounds(true);
+        this.mouse.body.setSize(57, 61);
+        this.mouse.body.setAllowGravity(false);
+        this.physics.add.collider(this.mouse, this.ground);
+        this.traps = this.physics.add.group({ allowGravity: false, immovable: true });
+        this.physics.add.overlap(this.mouse, this.traps, this.endRun, null, this);
+      }
+
+      createHud() {
+        this.score = 0;
+        this.best = Number(localStorage.getItem(BEST_SCORE_KEY) || 0);
+        this.scoreLabel = this.add.text(28, 24, '0000', { fontFamily: 'DM Mono, monospace', fontSize: '22px', color: '#34433b' }).setDepth(10);
+        this.bestLabel = this.add.text(30, 52, `BEST ${String(this.best).padStart(4, '0')}`, { fontFamily: 'DM Mono, monospace', fontSize: '10px', color: '#667660' }).setDepth(10);
+        document.querySelector('#best-score').textContent = `Best ${String(this.best).padStart(4, '0')}`;
+      }
+
+      createOverlay() {
+        this.overlay = this.add.container(0, 0).setDepth(20);
+        const veil = this.add.rectangle(GAME_WIDTH / 2, 255, 360, 178, 0xf3f2ed, .91);
+        veil.setStrokeStyle(1, 0x526349, .48);
+        this.overlayTitle = this.add.text(GAME_WIDTH / 2, 218, 'MOUSE RUN', { fontFamily: 'Playfair Display, Georgia, serif', fontSize: '31px', color: '#242721' }).setOrigin(.5);
+        this.overlayPrompt = this.add.text(GAME_WIDTH / 2, 276, 'START RUN', { fontFamily: 'DM Mono, monospace', fontSize: '13px', color: '#526349', backgroundColor: '#e5e9d8', padding: { x: 18, y: 11 } }).setOrigin(.5);
+        this.overlayHint = this.add.text(GAME_WIDTH / 2, 319, 'SPACE  /  ↑  /  TAP', { fontFamily: 'DM Mono, monospace', fontSize: '9px', color: '#777a70' }).setOrigin(.5);
+        this.overlay.add([veil, this.overlayTitle, this.overlayPrompt, this.overlayHint]);
+      }
+
+      createFlyers() {
+        this.flyers = [];
+        for (let index = 0; index < 5; index += 1) {
+          const flyer = this.add.image(190 + index * 205, 155 + (index % 2) * 72, 'bird').setAlpha(.78).setDepth(4);
+          flyer.speed = 34 + (index % 3) * 13;
+          flyer.phase = index * 1.7;
+          this.flyers.push(flyer);
+        }
+      }
+
+      bindControls() {
+        this.keyHandler = (event) => {
+          if (event.code !== 'Space' && event.code !== 'ArrowUp') return;
+          event.preventDefault();
+          this.act();
+        };
+        this.pointerHandler = () => {
+          this.gameSurface.focus({ preventScroll: true });
+          this.act();
+        };
+        this.gameSurface = document.querySelector('#game');
+        window.addEventListener('keydown', this.keyHandler);
+        this.gameSurface.addEventListener('pointerdown', this.pointerHandler);
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+          window.removeEventListener('keydown', this.keyHandler);
+          this.gameSurface.removeEventListener('pointerdown', this.pointerHandler);
+        });
+      }
+
+      resetRun() {
+        this.started = false;
+        this.finished = false;
+        this.distance = 0;
+        this.worldDistance = 0;
+        this.nextTrapAt = 0;
+        this.speed = 360;
+        this.score = 0;
+        this.scoreLabel.setText('0000');
+        this.mouse.setPosition(142, GROUND_Y - 42);
+        this.mouse.setVelocity(0, 0);
+        this.mouse.clearTint();
+        this.mouse.body.setAllowGravity(false);
+        this.traps.clear(true, true);
+        this.overlay.setVisible(true);
+        this.overlayTitle.setText('MOUSE RUN');
+        this.overlayPrompt.setText('START RUN');
+        this.physics.world.resume();
+      }
+
+      act() {
+        if (this.finished) {
+          this.resetRun();
+          return;
+        }
+        if (!this.started) {
+          this.started = true;
+          this.overlay.setVisible(false);
+          this.mouse.body.setAllowGravity(true);
+          this.mouse.body.setGravityY(1500);
+          this.spawnTrap();
+          this.nextTrapAt = Phaser.Math.Between(620, 1250);
+          return;
+        }
+        if (this.mouse.body.blocked.down || this.mouse.body.touching.down) this.mouse.setVelocityY(-650);
+      }
+
+      spawnTrap() {
+        if (!this.started || this.finished) return;
+        const trap = this.traps.create(GAME_WIDTH + 55, GROUND_Y - 19, 'trap');
+        trap.setDepth(5);
+        trap.setVelocityX(-this.speed);
+        trap.body.setSize(83, 47).setOffset(5, 7);
+        trap.body.setAllowGravity(false);
+        trap.setImmovable(true);
+      }
+
+      endRun(mouse, trap) {
+        if (this.finished) return;
+        this.finished = true;
+        this.physics.world.pause();
+        mouse.setTint(0xd6a29a);
+        if (this.score > this.best) {
+          this.best = this.score;
+          localStorage.setItem(BEST_SCORE_KEY, String(this.best));
+          this.bestLabel.setText(`BEST ${String(this.best).padStart(4, '0')}`);
+          document.querySelector('#best-score').textContent = `Best ${String(this.best).padStart(4, '0')}`;
+        }
+        this.overlayTitle.setText('SNAP!');
+        this.overlayPrompt.setText('RUN AGAIN');
+        this.overlay.setVisible(true);
+      }
+
+      update(_time, delta) {
+        const seconds = delta / 1000;
+        this.flyers.forEach((flyer) => {
+          flyer.x -= flyer.speed * seconds;
+          flyer.y += Math.sin(_time / 500 + flyer.phase) * .12;
+          if (flyer.x < -40) flyer.x = GAME_WIDTH + 30;
+        });
+        if (!this.started || this.finished) return;
+
+        this.distance += delta;
+        this.worldDistance += this.speed * seconds;
+        this.score = Math.floor(this.distance / 100);
+        this.scoreLabel.setText(String(this.score).padStart(4, '0'));
+        this.speed = Math.min(570, 360 + Math.floor(this.score / 50) * 18);
+        if (this.worldDistance >= this.nextTrapAt) {
+          this.spawnTrap();
+          this.nextTrapAt = this.worldDistance + Phaser.Math.Between(620, 1250);
+        }
+        this.traps.children.iterate((trap) => {
+          if (trap && trap.x < -100) trap.destroy();
+        });
+      }
+    }
+
+    const game = new Phaser.Game({
+      type: Phaser.AUTO,
+      parent: 'game',
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT,
+      backgroundColor: '#dcefe8',
+      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+      physics: { default: 'arcade', arcade: { gravity: { y: 0 }, debug: false } },
+      scene: [MouseRun]
+    });
+  </script>
+</body>
+</html>
