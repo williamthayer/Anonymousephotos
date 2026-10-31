@@ -394,6 +394,17 @@
       bindTagButton(button);
     }
 
+    function shuffleTagFilters() {
+      const filterContainer = document.querySelector('.tag-filters');
+      const clearButton = document.querySelector('#clear-tags');
+      const filters = [...filterContainer.querySelectorAll('.tag-filter')];
+      for (let index = filters.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [filters[index], filters[swapIndex]] = [filters[swapIndex], filters[index]];
+      }
+      filters.forEach((button) => filterContainer.insertBefore(button, clearButton));
+    }
+
     function createPhotoTagButton(tag) {
       registerTag(tag);
       const button = document.createElement('button');
@@ -726,6 +737,7 @@
           createUploadedCard({ ...photo, tags }, imageUrl);
         }
       }
+      shuffleTagFilters();
     }
 
     async function verifyAdminSession(session) {
