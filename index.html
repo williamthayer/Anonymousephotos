@@ -788,6 +788,60 @@
     lightbox.querySelector('.lightbox-next').addEventListener('click', () => showPhoto(currentIndex + 1));
     lightbox.addEventListener('click', (event) => { if (event.target === lightbox) closeLightbox(); });
 
+    const mouseGameLink = document.querySelector('.wordmark-game');
+    let squeakAudioContext = null;
+    let pendingMouseClick = null;
+
+    function prepareSqueakAudio() {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return false;
+      try {
+        squeakAudioContext ??= new AudioContextClass();
+        if (squeakAudioContext.state === 'suspended') void squeakAudioContext.resume();
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function playMouseSqueak() {
+      if (!squeakAudioContext || squeakAudioContext.state !== 'running') return;
+      const now = squeakAudioContext.currentTime;
+      const squeak = squeakAudioContext.createOscillator();
+      const volume = squeakAudioContext.createGain();
+      squeak.type = 'sine';
+      squeak.frequency.setValueAtTime(1150, now);
+      squeak.frequency.exponentialRampToValueAtTime(1750, now + 0.06);
+      squeak.frequency.exponentialRampToValueAtTime(950, now + 0.2);
+      volume.gain.setValueAtTime(0.0001, now);
+      volume.gain.exponentialRampToValueAtTime(0.055, now + 0.015);
+      volume.gain.exponentialRampToValueAtTime(0.0001, now + 0.21);
+      squeak.connect(volume);
+      volume.connect(squeakAudioContext.destination);
+      squeak.start(now);
+      squeak.stop(now + 0.22);
+    }
+
+    mouseGameLink.addEventListener('click', (event) => {
+      if (event.detail === 0) return;
+      event.preventDefault();
+      window.clearTimeout(pendingMouseClick);
+      pendingMouseClick = null;
+      if (event.detail === 1 && prepareSqueakAudio()) {
+        pendingMouseClick = window.setTimeout(() => {
+          pendingMouseClick = null;
+          playMouseSqueak();
+        }, 260);
+      }
+    });
+
+    mouseGameLink.addEventListener('dblclick', (event) => {
+      event.preventDefault();
+      window.clearTimeout(pendingMouseClick);
+      pendingMouseClick = null;
+      window.location.assign(mouseGameLink.href);
+    });
+
     document.addEventListener('keydown', (event) => {
       if (!lightbox.classList.contains('is-open')) return;
       if (event.key === 'Escape') closeLightbox();
