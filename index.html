@@ -707,7 +707,12 @@
         console.error('Unable to load uploaded photos:', error.message);
         return;
       }
-      for (const photo of data.reverse()) {
+      const randomizedPhotos = [...data];
+      for (let index = randomizedPhotos.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [randomizedPhotos[index], randomizedPhotos[swapIndex]] = [randomizedPhotos[swapIndex], randomizedPhotos[index]];
+      }
+      for (const photo of randomizedPhotos.reverse()) {
         const imageUrl = photo.image_url || (photo.storage_path
           ? supabaseClient.storage.from('gallery').getPublicUrl(photo.storage_path).data.publicUrl
           : null);
