@@ -111,7 +111,9 @@
     .photo-title a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
     .photo-title a:hover { color: var(--moss); text-decoration-color: currentColor; }
     .photo-tags { min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 5px; }
-    .photo-tag { padding: 4px 6px; border: 1px solid var(--line); color: var(--muted); font: 8px var(--mono); letter-spacing: .02em; }
+    .photo-tag { padding: 4px 6px; border: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--muted); cursor: pointer; font: 8px var(--mono); letter-spacing: .02em; }
+    .photo-tag:hover:not([aria-pressed="true"]) { border-color: var(--moss); color: var(--ink); }
+    .photo-tag[aria-pressed="true"] { border-color: var(--moss); background: var(--moss); color: #fff; }
     .photo-admin-controls, .photo-tag-editor { grid-column: 1 / -1; }
     .photo-admin-controls { display: flex; align-items: center; gap: 12px; }
     .photo-admin-controls button, .photo-tag-editor button { padding: 0; border: 0; background: transparent; color: var(--moss); cursor: pointer; font: 9px var(--mono); text-decoration: underline; text-underline-offset: 3px; }
@@ -152,7 +154,7 @@
       h1 { font-size: clamp(49px, 13vw, 72px); }
       .intro-copy { max-width: 290px; font-size: 12px; }
       .photo-collection { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-      .tag-sidebar { position: static; grid-row: 1; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); border-left: 0; }
+      .tag-sidebar { position: sticky; z-index: 5; top: 0; grid-row: 1; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); border-left: 0; background: var(--paper); }
       .tag-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 9px 0 0; }
       .tag-filter, .clear-tags { min-height: 27px; padding: 0 8px; font-size: 8px; }
       .tag-filter, .clear-tags { width: auto; }
@@ -368,8 +370,14 @@
         const tag = button.dataset.tag;
         if (selectedTags.has(tag)) selectedTags.delete(tag);
         else selectedTags.add(tag);
-        button.setAttribute('aria-pressed', String(selectedTags.has(tag)));
+        syncTagButtonStates();
         applyTagFilters();
+      });
+    }
+
+    function syncTagButtonStates() {
+      document.querySelectorAll('.tag-filter, .photo-tag').forEach((button) => {
+        button.setAttribute('aria-pressed', String(selectedTags.has(button.dataset.tag)));
       });
     }
 
@@ -379,11 +387,23 @@
       button.className = 'tag-filter';
       button.type = 'button';
       button.dataset.tag = tag;
-      button.setAttribute('aria-pressed', 'false');
+      button.setAttribute('aria-pressed', String(selectedTags.has(tag)));
       button.textContent = formatTag(tag);
       document.querySelector('.tag-filters').insertBefore(button, document.querySelector('#clear-tags'));
       tagButtons.push(button);
       bindTagButton(button);
+    }
+
+    function createPhotoTagButton(tag) {
+      registerTag(tag);
+      const button = document.createElement('button');
+      button.className = 'photo-tag';
+      button.type = 'button';
+      button.dataset.tag = tag;
+      button.setAttribute('aria-pressed', String(selectedTags.has(tag)));
+      button.textContent = formatTag(tag);
+      bindTagButton(button);
+      return button;
     }
 
     function applyTagFilters() {
@@ -406,7 +426,7 @@
 
     clearTagsButton.addEventListener('click', () => {
       selectedTags.clear();
-      tagButtons.forEach((button) => button.setAttribute('aria-pressed', 'false'));
+      syncTagButtonStates();
       applyTagFilters();
     });
 
@@ -475,11 +495,7 @@
       tags.className = 'photo-tags';
       tags.setAttribute('aria-label', 'Tags');
       photo.tags.forEach((tag) => {
-        registerTag(tag);
-        const chip = document.createElement('span');
-        chip.className = 'photo-tag';
-        chip.textContent = formatTag(tag);
-        tags.append(chip);
+        tags.append(createPhotoTagButton(tag));
       });
       caption.append(title, tags);
       article.append(photoButton, caption);
@@ -495,11 +511,7 @@
       const tagList = article.querySelector('.photo-tags');
       tagList.replaceChildren();
       tags.forEach((tag) => {
-        registerTag(tag);
-        const chip = document.createElement('span');
-        chip.className = 'photo-tag';
-        chip.textContent = formatTag(tag);
-        tagList.append(chip);
+        tagList.append(createPhotoTagButton(tag));
       });
     }
 
