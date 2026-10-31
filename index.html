@@ -195,8 +195,8 @@
         <label class="form-field">Title
           <input id="upload-title" name="title" type="text" maxlength="100" required>
         </label>
-        <label class="form-field">Title link URL
-          <input id="upload-link" name="link" type="url" inputmode="url" placeholder="https://example.com" required>
+        <label class="form-field">Title link (optional)
+          <input id="upload-link" name="link" type="text" inputmode="url" placeholder="example.com or https://example.com" autocomplete="url">
         </label>
         <label class="form-field">Tags, separated by commas
           <input id="upload-tags" name="tags" type="text" placeholder="forest, sunrise, mountains" required>
@@ -291,6 +291,23 @@
 
     function normalizeTag(tag) {
       return tag.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    function normalizeTitleLink(value) {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+
+      const hasHttpScheme = /^https?:\/\//i.test(trimmed);
+      const hasPort = /^[^/]+:\d+(?:[/?#]|$)/.test(trimmed);
+      if (/^[a-z][a-z\d+.-]*:/i.test(trimmed) && !hasHttpScheme && !hasPort) {
+        throw new Error('Use a website address such as example.com or an http(s) link.');
+      }
+
+      const parsed = new URL(hasHttpScheme || hasPort ? trimmed : `https://${trimmed}`);
+      if (!['https:', 'http:'].includes(parsed.protocol) || !parsed.hostname) {
+        throw new Error('Use a website address such as example.com or an http(s) link.');
+      }
+      return parsed.href;
     }
 
     function bindTagButton(button) {
@@ -654,7 +671,7 @@
       if (!supabaseClient) return;
       const file = document.querySelector('#upload-file').files[0];
       const title = document.querySelector('#upload-title').value.trim();
-      const linkUrl = document.querySelector('#upload-link').value.trim();
+      const linkInput = document.querySelector('#upload-link').value;
       const tags = [...new Set(document.querySelector('#upload-tags').value.split(',').map(normalizeTag).filter(Boolean))];
       const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif' };
       if (!file) {
@@ -673,15 +690,11 @@
         uploadStatus.textContent = 'Add a title and at least one tag.';
         return;
       }
-      let parsedLink;
+      let normalizedLink;
       try {
-        parsedLink = new URL(linkUrl);
-      } catch {
-        uploadStatus.textContent = 'Enter a valid link starting with https:// or http://.';
-        return;
-      }
-      if (!['https:', 'http:'].includes(parsedLink.protocol)) {
-        uploadStatus.textContent = 'The title link must start with https:// or http://.';
+        normalizedLink = normalizeTitleLink(linkInput);
+      } catch (error) {
+        uploadStatus.textContent = error.message;
         return;
       }
 
@@ -719,7 +732,7 @@
 
         uploadProgress.setAttribute('aria-valuetext', 'Saving photo details');
         uploadStatus.textContent = 'Image uploaded. Saving its title and tags…';
-        const photo = { title, alt_text: title, link_url: parsedLink.href, tags, storage_path: storagePath, created_by: userData.user.id };
+        const photo = { title, alt_text: title, link_url: normalizedLink, tags, storage_path: storagePath, created_by: userData.user.id };
         const { data: savedPhoto, error: insertError } = await supabaseClient.from('photos').insert(photo).select().single();
         if (insertError) {
           await supabaseClient.storage.from('gallery').remove([storagePath]);
