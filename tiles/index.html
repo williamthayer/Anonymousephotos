@@ -40,10 +40,11 @@
     .puzzle-layout[hidden], .loading[hidden] { display: none; }
     .board-wrap { width: min(100%, 620px); margin: 0 auto; }
     .board { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 5px; border: 1px solid var(--line); background: #e7e6dd; box-shadow: 0 15px 40px rgba(49,62,47,.1); touch-action: manipulation; }
-    .tile { display: block; width: 100%; aspect-ratio: 1; padding: 0; overflow: hidden; border: 0; background-color: #fff; background-image: var(--puzzle-image); background-repeat: no-repeat; background-size: var(--puzzle-image-size, 400% 400%); cursor: pointer; }
+    .tile { display: block; width: 100%; aspect-ratio: 1; padding: 0; overflow: hidden; border: 0; background-color: #fff; background-image: var(--puzzle-image); background-repeat: no-repeat; background-size: var(--puzzle-image-size, 300% 300%); cursor: pointer; }
     .tile:hover { filter: brightness(1.08); }
     .tile[disabled] { cursor: default; }
     .tile-empty { aspect-ratio: 1; background: var(--paper); }
+    .tile-final { background-color: #fff; background-image: var(--puzzle-image); background-repeat: no-repeat; background-size: var(--puzzle-image-size); }
     .puzzle-info { padding-top: 8px; }
     .photo-title { margin: 0 0 8px; font: 500 23px/1.2 var(--serif); }
     .photo-alt { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
@@ -141,8 +142,15 @@
       tiles.forEach((tile, position) => {
         if (tile === 0) {
           const empty = document.createElement('span');
-          empty.className = 'tile-empty';
-          empty.setAttribute('aria-label', 'Empty space');
+          empty.className = solved ? 'tile-empty tile-final' : 'tile-empty';
+          empty.setAttribute('aria-label', solved ? 'Completed photo' : 'Empty space');
+          if (solved) {
+            const cropOffsetX = (GRID_SIZE * imageScaleX - GRID_SIZE) / 2;
+            const cropOffsetY = (GRID_SIZE * imageScaleY - GRID_SIZE) / 2;
+            const positionX = (GRID_SIZE - 1 + cropOffsetX) / (GRID_SIZE * imageScaleX - 1) * 100;
+            const positionY = (GRID_SIZE - 1 + cropOffsetY) / (GRID_SIZE * imageScaleY - 1) * 100;
+            empty.style.backgroundPosition = `${positionX}% ${positionY}%`;
+          }
           board.append(empty);
           return;
         }
@@ -222,7 +230,7 @@
           imageScaleX = Math.max(1, aspectRatio);
           imageScaleY = Math.max(1, 1 / aspectRatio);
           board.style.setProperty('--puzzle-image', `url("${parsedUrl.href}")`);
-          board.style.setProperty('--puzzle-image-size', `${imageScaleX * 400}% ${imageScaleY * 400}%`);
+          board.style.setProperty('--puzzle-image-size', `${imageScaleX * GRID_SIZE * 100}% ${imageScaleY * GRID_SIZE * 100}%`);
           photoTitle.textContent = photo.title || 'Anonymouse Photos';
           photoAlt.textContent = photo.alt_text || '';
           lastPhotoId = photo.id;
