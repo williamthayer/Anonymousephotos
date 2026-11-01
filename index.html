@@ -83,11 +83,19 @@
     .intro-copy { max-width: 235px; margin: 0 0 5px; color: var(--muted); font-size: 13px; line-height: 1.75; }
 
     .photo-collection { display: grid; grid-template-columns: minmax(0, 1fr) 210px; align-items: start; gap: 28px; }
+    .photo-collection.tags-collapsed { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .photo-collection.tags-collapsed .gallery-main { grid-row: 2; }
+    .photo-collection.tags-collapsed .tag-sidebar { grid-row: 1; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line); }
+    .photo-collection.tags-collapsed .photo-tags { display: none; }
     .gallery-main { min-width: 0; }
     .gallery-toolbar { min-height: 44px; display: flex; justify-content: flex-end; align-items: center; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .tag-sidebar { position: sticky; top: 24px; min-width: 0; padding: 15px 0 15px 18px; border-left: 1px solid var(--line); }
     .tag-sidebar-title { margin: 0; color: var(--muted); font: 9px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    .tag-sidebar-toggle { width: 100%; padding: 0; display: flex; justify-content: space-between; align-items: center; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; letter-spacing: inherit; text-align: left; text-transform: inherit; }
+    .tag-sidebar-toggle::after { content: "−"; font: 12px var(--mono); }
+    .tag-sidebar-toggle[aria-expanded="false"]::after { content: "+"; }
     .tag-filters { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 7px; padding: 12px 0; }
+    .tag-filters[hidden] { display: none; }
     .tag-filter, .clear-tags { min-height: 29px; padding: 0 11px; border: 1px solid var(--line); border-radius: 2px; background: transparent; color: var(--muted); cursor: pointer; font: 9px var(--mono); letter-spacing: .04em; }
     .tag-filter, .clear-tags { width: 100%; text-align: left; }
     .tag-filter[aria-pressed="true"] { border-color: var(--moss); background: var(--moss); color: #fff; }
@@ -131,7 +139,7 @@
     .lightbox { position: fixed; z-index: 5; inset: 0; display: none; align-items: center; justify-content: center; padding: 28px; background: rgba(25,27,24,.94); }
     .lightbox.is-open { display: flex; }
     .lightbox-figure { max-width: min(1050px, calc(100vw - 130px)); max-height: calc(100vh - 105px); margin: 0; display: flex; flex-direction: column; align-items: center; }
-    .lightbox-image { max-width: 100%; max-height: calc(100vh - 160px); object-fit: contain; }
+    .lightbox-image { max-width: 100%; max-height: calc(100vh - 160px); object-fit: contain; touch-action: pan-y; user-select: none; -webkit-user-drag: none; }
     .lightbox-caption { width: 100%; padding-top: 12px; color: #f3f2ed; font-size: 12px; }
     .lightbox-control { position: absolute; width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid rgba(243,242,237,.35); border-radius: 50%; background: transparent; color: #f3f2ed; cursor: pointer; font-size: 20px; transition: background .2s ease; }
     .lightbox-control:hover { background: rgba(243,242,237,.15); }
@@ -242,7 +250,7 @@
       <p class="upload-status" id="upload-status" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="photo-collection" aria-label="Photo collection">
+    <section class="photo-collection tags-collapsed" aria-label="Photo collection">
       <div class="gallery-main">
         <div class="gallery-toolbar">
           <span class="photo-count" id="photo-count" aria-live="polite">0 photographs</span>
@@ -251,8 +259,8 @@
         <p class="gallery-empty" id="gallery-empty" aria-live="polite">No photos uploaded yet.</p>
       </div>
       <aside class="tag-sidebar" aria-label="Photo filters">
-        <h2 class="tag-sidebar-title">Filter by tag</h2>
-        <div class="tag-filters" role="group" aria-label="Filter photographs by tags">
+        <h2 class="tag-sidebar-title"><button class="tag-sidebar-toggle" id="tag-sidebar-toggle" type="button" aria-expanded="false" aria-controls="tag-filters">Filter by tag</button></h2>
+        <div class="tag-filters" id="tag-filters" role="group" aria-label="Filter photographs by tags" hidden>
           <button class="clear-tags" id="clear-tags" type="button" disabled>Clear tags</button>
         </div>
     </section>
@@ -293,6 +301,9 @@
     let cards = [...document.querySelectorAll('.photo-card')];
     const tagButtons = [...document.querySelectorAll('.tag-filter')];
     const clearTagsButton = document.querySelector('#clear-tags');
+    const tagSidebarToggle = document.querySelector('#tag-sidebar-toggle');
+    const tagFilters = document.querySelector('#tag-filters');
+    const photoCollection = document.querySelector('.photo-collection');
     const photoCount = document.querySelector('#photo-count');
     const galleryEmpty = document.querySelector('#gallery-empty');
     const lightbox = document.querySelector('#lightbox');
@@ -319,6 +330,7 @@
     let visibleCards = cards;
     let currentIndex = 0;
     let returnFocus = null;
+    let swipeStart = null;
     let verifiedAdminId = null;
     let adminMode = false;
 
@@ -439,6 +451,12 @@
       selectedTags.clear();
       syncTagButtonStates();
       applyTagFilters();
+    });
+
+    tagSidebarToggle.addEventListener('click', () => {
+      tagFilters.hidden = !tagFilters.hidden;
+      tagSidebarToggle.setAttribute('aria-expanded', String(!tagFilters.hidden));
+      photoCollection.classList.toggle('tags-collapsed', tagFilters.hidden);
     });
 
     function showPhoto(index) {
@@ -899,6 +917,20 @@
     lightbox.querySelector('.lightbox-prev').addEventListener('click', () => showPhoto(currentIndex - 1));
     lightbox.querySelector('.lightbox-next').addEventListener('click', () => showPhoto(currentIndex + 1));
     lightbox.addEventListener('click', (event) => { if (event.target === lightbox) closeLightbox(); });
+    lightboxImage.addEventListener('pointerdown', (event) => {
+      if (event.pointerType !== 'touch') return;
+      swipeStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+      lightboxImage.setPointerCapture(event.pointerId);
+    });
+    lightboxImage.addEventListener('pointerup', (event) => {
+      if (!swipeStart || event.pointerId !== swipeStart.pointerId) return;
+      const deltaX = event.clientX - swipeStart.x;
+      const deltaY = event.clientY - swipeStart.y;
+      swipeStart = null;
+      if (Math.abs(deltaX) < 50 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+      showPhoto(currentIndex + (deltaX < 0 ? 1 : -1));
+    });
+    lightboxImage.addEventListener('pointercancel', () => { swipeStart = null; });
 
     const mouseGameLink = document.querySelector('.wordmark-game');
     let squeakAudioContext = null;
