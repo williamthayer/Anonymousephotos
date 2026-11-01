@@ -485,7 +485,7 @@
       returnFocus?.focus();
     }
 
-    function createUploadedCard(photo, imageUrl) {
+    function createUploadedCard(photo, imageUrl, applyFilters = true) {
       if (photo.id && loadedPhotoIds.has(photo.id)) return;
       if (photo.id) loadedPhotoIds.add(photo.id);
       const article = document.createElement('article');
@@ -533,7 +533,7 @@
       photoButton.addEventListener('click', () => openLightbox(article));
       gallery.prepend(article);
       cards.unshift(article);
-      applyTagFilters();
+      if (applyFilters) applyTagFilters();
     }
 
     function renderCardTags(article, tags) {
@@ -726,17 +726,20 @@
         console.error('Unable to load uploaded photos:', error.message);
         return;
       }
-      const randomizedPhotos = [...data];
-      for (let index = randomizedPhotos.length - 1; index > 0; index -= 1) {
-        const swapIndex = Math.floor(Math.random() * (index + 1));
-        [randomizedPhotos[index], randomizedPhotos[swapIndex]] = [randomizedPhotos[swapIndex], randomizedPhotos[index]];
-      }
-      for (const photo of randomizedPhotos.reverse()) {
+      const preparedPhotos = data.map((photo) => {
         const imageUrl = photo.image_url || (photo.storage_path
           ? supabaseClient.storage.from('gallery').getPublicUrl(photo.storage_path).data.publicUrl
           : null);
-        if (!imageUrl) continue;
+        return imageUrl ? { photo, imageUrl } : null;
+      }).filter(Boolean);
 
+      for (const { photo, imageUrl } of [...preparedPhotos].reverse()) {
+        createUploadedCard({ ...photo, tags: photo.tags || [] }, imageUrl, false);
+      }
+      applyTagFilters();
+      shuffleTagFilters();
+
+      await Promise.all(preparedPhotos.map(async ({ photo, imageUrl }) => {
         let tags = photo.tags || [];
         try {
           const orientation = await detectOrientationTag(imageUrl);
@@ -751,17 +754,15 @@
           }
         } catch (orientationError) {
           console.warn('Unable to detect photo orientation:', orientationError.message);
+          return;
         }
 
         const existingCard = cards.find((card) => card.dataset.photoId === photo.id);
         if (existingCard) {
           renderCardTags(existingCard, tags);
-          applyTagFilters();
-        } else {
-          createUploadedCard({ ...photo, tags }, imageUrl);
         }
-      }
-      shuffleTagFilters();
+      }));
+      applyTagFilters();
     }
 
     async function verifyAdminSession(session) {
