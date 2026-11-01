@@ -29,3 +29,7 @@ The site is static and can be published from this repository with GitHub Pages. 
 If you already ran the setup SQL, run the updated `supabase-setup.sql` again after changes. It adds `image_url` and makes the old `storage_path` optional. New entries store URL metadata in Supabase; their image files stay on the linked image host. Existing Storage-backed photos continue to display until you replace their source URL in **Edit photo**, which then removes the old Storage object. Signed-in admins can edit tags, replace image URLs, or remove photos from the gallery.
 
 The public key is intended for browser use. The SQL policies make gallery metadata readable publicly but allow writes only for user IDs in `gallery_admins`. Never put a Supabase `service_role` or secret key in this repository. Photo source URLs and images are public because the gallery is public. Since new photos are no longer processed by the site, metadata and access are controlled by the external image host.
+
+## Tiles game
+
+Mouse Run shows a **Tiles** link after a run ends with a score above 200. The puzzle page is in `tiles/index.html` and loads a random public photo from the gallery. To serve it at `tiles.anonymousephotos.com`, configure DNS and hosting to route that subdomain to the Tiles page; the existing `CNAME` configures this repository's current `www.anonymousephotos.com` host only.

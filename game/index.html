@@ -38,6 +38,9 @@
     #game { width: 100%; aspect-ratio: 16 / 9; }
     #game:focus-visible { outline: 3px solid var(--moss); outline-offset: -3px; }
     #game canvas { display: block; width: 100% !important; height: 100% !important; object-fit: contain; }
+    .tiles-link { position: absolute; z-index: 2; top: 69%; left: 50%; padding: 10px 24px; border: 1px solid var(--moss); background: #e5e9d8; color: var(--moss); font: 12px var(--mono); letter-spacing: .08em; text-decoration: none; text-transform: uppercase; transform: translateX(-50%); }
+    .tiles-link:hover { background: var(--moss); color: #fff; }
+    .tiles-link[hidden] { display: none; }
     .game-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 13px; color: var(--muted); font: 9px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
     .game-footer strong { color: var(--moss); font-weight: 500; }
     a:focus-visible { outline: 2px solid var(--moss); outline-offset: 4px; }
@@ -65,6 +68,7 @@
     </div>
     <div class="game-shell">
       <div id="game" role="application" aria-label="Mouse Run game" tabindex="0"></div>
+      <a class="tiles-link" id="tiles-link" href="https://tiles.anonymousephotos.com/" hidden>Tiles</a>
     </div>
     <div class="game-footer"><span><strong>Space</strong> / <strong>↑</strong> / tap to jump</span><span id="best-score">Best 0000</span></div>
   </main>
@@ -115,11 +119,14 @@
         mouse.lineBetween(38, 53, 14, 54);
         mouse.lineBetween(55, 49, 78, 45);
         mouse.lineBetween(56, 53, 80, 54);
-        mouse.fillStyle(0xe4c972, 1);
-        mouse.fillEllipse(25, 76, 19, 8);
-        mouse.fillEllipse(70, 76, 19, 8);
         mouse.generateTexture('mouse', 94, 84);
         mouse.destroy();
+
+        const foot = this.make.graphics({ x: 0, y: 0, add: false });
+        foot.fillStyle(0xe4c972, 1);
+        foot.fillEllipse(12, 6, 19, 8);
+        foot.generateTexture('mouse-foot', 24, 12);
+        foot.destroy();
 
         const trap = this.make.graphics({ x: 0, y: 0, add: false });
         trap.fillStyle(0xc85f52, 1);
@@ -198,6 +205,13 @@
         this.mouse.setCollideWorldBounds(true);
         this.mouse.body.setSize(57, 61);
         this.mouse.body.setAllowGravity(false);
+        this.mouseFeet = [
+          this.add.image(120, GROUND_Y - 8, 'mouse-foot').setDepth(4),
+          this.add.image(165, GROUND_Y - 8, 'mouse-foot').setDepth(4)
+        ];
+        this.tilesLink = document.querySelector('#tiles-link');
+        this.tilesLink.addEventListener('pointerdown', (event) => event.stopPropagation());
+        this.tilesLink.addEventListener('click', (event) => event.stopPropagation());
         this.physics.add.collider(this.mouse, this.ground);
         this.traps = this.physics.add.group({ allowGravity: false, immovable: true });
         this.physics.add.overlap(this.mouse, this.traps, this.endRun, null, this);
@@ -253,6 +267,7 @@
       resetRun() {
         this.started = false;
         this.finished = false;
+        this.tilesLink.hidden = true;
         this.distance = 0;
         this.worldDistance = 0;
         this.nextTrapAt = 0;
@@ -262,6 +277,7 @@
         this.mouse.setPosition(142, GROUND_Y - 42);
         this.mouse.setVelocity(0, 0);
         this.mouse.clearTint();
+        this.mouseFeet.forEach((foot) => foot.setAngle(0).setPosition(foot.x, GROUND_Y - 8));
         this.mouse.body.setAllowGravity(false);
         this.traps.clear(true, true);
         this.squeakAudioContext ??= null;
@@ -320,6 +336,34 @@
         }
       }
 
+      playSnapSound() {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        try {
+          this.squeakAudioContext ??= new AudioContextClass();
+          const audio = this.squeakAudioContext;
+          const play = () => {
+            const now = audio.currentTime;
+            const snap = audio.createOscillator();
+            const volume = audio.createGain();
+            snap.type = 'triangle';
+            snap.frequency.setValueAtTime(1100, now);
+            snap.frequency.exponentialRampToValueAtTime(130, now + 0.1);
+            volume.gain.setValueAtTime(0.0001, now);
+            volume.gain.exponentialRampToValueAtTime(0.18, now + 0.004);
+            volume.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+            snap.connect(volume);
+            volume.connect(audio.destination);
+            snap.start(now);
+            snap.stop(now + 0.13);
+          };
+          if (audio.state === 'suspended') void audio.resume().then(play).catch(() => {});
+          else play();
+        } catch {
+          return;
+        }
+      }
+
       spawnTrap() {
         if (!this.started || this.finished) return;
         const trap = this.traps.create(GAME_WIDTH + 55, GROUND_Y - 19, 'trap');
@@ -334,6 +378,7 @@
         if (this.finished) return;
         this.finished = true;
         this.physics.world.pause();
+        this.playSnapSound();
         mouse.setTint(0xd6a29a);
         if (this.score > this.best) {
           this.best = this.score;
@@ -344,6 +389,7 @@
         this.overlayTitle.setText('SNAP!');
         this.overlayPrompt.setText('RUN AGAIN');
         this.overlay.setVisible(true);
+        this.tilesLink.hidden = this.score <= 200;
       }
 
       update(_time, delta) {
@@ -352,6 +398,12 @@
           flyer.x -= flyer.speed * seconds;
           flyer.y += Math.sin(_time / 500 + flyer.phase) * .12;
           if (flyer.x < -40) flyer.x = GAME_WIDTH + 30;
+        });
+        const airborne = this.started && !this.finished && !(this.mouse.body.blocked.down || this.mouse.body.touching.down);
+        const footKick = airborne ? Math.sin(_time / 45) * 32 : 0;
+        this.mouseFeet.forEach((foot, index) => {
+          foot.setPosition(this.mouse.x + (index === 0 ? -22 : 23), this.mouse.y + 34 + (airborne ? Math.abs(footKick) * 0.08 : 0));
+          foot.setAngle(index === 0 ? footKick : -footKick);
         });
         if (!this.started || this.finished) return;
 

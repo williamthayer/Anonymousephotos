@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f2ed">
+  <meta name="description" content="Solve a sliding puzzle using a random photo from Anonymouse Photos.">
+  <title>Tiles · Anonymouse Photos</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f3f2ed;
+      --ink: #242721;
+      --muted: #777a70;
+      --line: #dcded5;
+      --moss: #526349;
+      --mono: "DM Mono", monospace;
+      --sans: "DM Sans", sans-serif;
+      --serif: "Playfair Display", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); }
+    button, a { color: inherit; font: inherit; }
+    button:focus-visible, a:focus-visible { outline: 2px solid var(--moss); outline-offset: 3px; }
+    .topbar { height: 66px; padding: 0 clamp(18px, 6vw, 78px); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .back-link { display: inline-flex; align-items: center; gap: 9px; color: var(--ink); font-size: 12px; font-weight: 600; text-decoration: none; }
+    .back-link:hover { color: var(--moss); }
+    .back-arrow { color: var(--moss); font-size: 18px; }
+    .game-mark { color: var(--muted); font: 9px var(--mono); letter-spacing: .09em; text-transform: uppercase; }
+    main { width: min(1120px, 100%); margin: 0 auto; padding: clamp(24px, 5vh, 52px) clamp(16px, 4vw, 44px) 40px; }
+    .heading { margin-bottom: 22px; }
+    h1 { margin: 0 0 8px; font: 500 clamp(34px, 6vw, 58px)/1 var(--serif); }
+    .heading p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .puzzle-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .7fr); align-items: start; gap: clamp(20px, 5vw, 54px); }
+    .puzzle-layout[hidden], .loading[hidden] { display: none; }
+    .board-wrap { width: min(100%, 620px); margin: 0 auto; }
+    .board { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 5px; border: 1px solid var(--line); background: #e7e6dd; box-shadow: 0 15px 40px rgba(49,62,47,.1); touch-action: manipulation; }
+    .tile { display: block; width: 100%; aspect-ratio: 1; padding: 0; overflow: hidden; border: 0; background-color: #fff; background-image: var(--puzzle-image); background-repeat: no-repeat; background-size: var(--puzzle-image-size, 400% 400%); cursor: pointer; }
+    .tile:hover { filter: brightness(1.08); }
+    .tile[disabled] { cursor: default; }
+    .tile-empty { aspect-ratio: 1; background: var(--paper); }
+    .puzzle-info { padding-top: 8px; }
+    .photo-title { margin: 0 0 8px; font: 500 23px/1.2 var(--serif); }
+    .photo-alt { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .move-count { margin: 22px 0; color: var(--moss); font: 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+    .puzzle-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .puzzle-actions button { min-height: 38px; padding: 0 12px; border: 1px solid var(--line); background: transparent; cursor: pointer; font: 9px var(--mono); letter-spacing: .04em; text-transform: uppercase; }
+    .puzzle-actions button:hover { border-color: var(--moss); color: var(--moss); }
+    .puzzle-actions button:disabled { opacity: .55; cursor: wait; }
+    .puzzle-status { min-height: 42px; margin: 17px 0 0; color: var(--moss); font-size: 12px; line-height: 1.5; }
+    .puzzle-status[data-error="true"] { color: #92584b; }
+    .loading { padding: 35px 20px; color: var(--muted); font: 11px var(--mono); text-align: center; }
+    .loading[data-error="true"] { color: #92584b; }
+    .loading[hidden] { display: none; }
+    @media (max-width: 700px) {
+      .topbar { height: 58px; }
+      .game-mark { font-size: 8px; }
+      main { padding: 25px 16px 30px; }
+      .heading { margin-bottom: 18px; }
+      .puzzle-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+      .board-wrap { width: min(100%, 520px); }
+      .puzzle-info { padding-top: 0; }
+      .move-count { margin: 14px 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back-link" href="https://www.anonymousephotos.com/"><span class="back-arrow" aria-hidden="true">←</span> Anonymouse Photos</a>
+    <span class="game-mark">Field game · No. 02</span>
+  </header>
+  <main>
+    <div class="heading">
+      <h1>Tiles</h1>
+      <p>Slide the photo tiles into order. Tap a tile beside the empty space, or use the arrow keys.</p>
+    </div>
+    <div class="loading" id="loading" role="status">Finding a photo for your puzzle…</div>
+    <section class="puzzle-layout" id="puzzle" aria-label="Sliding photo puzzle" hidden>
+      <div class="board-wrap">
+        <div class="board" id="board" role="group" aria-label="15-puzzle board" tabindex="0"></div>
+      </div>
+      <div class="puzzle-info">
+        <h2 class="photo-title" id="photo-title"></h2>
+        <p class="photo-alt" id="photo-alt"></p>
+        <p class="move-count" id="move-count" aria-live="polite">Moves: 0</p>
+        <div class="puzzle-actions">
+          <button id="shuffle-button" type="button">Shuffle puzzle</button>
+          <button id="new-photo-button" type="button">New photo</button>
+        </div>
+        <p class="puzzle-status" id="puzzle-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../supabase-config.js"></script>
+  <script>
+    const GRID_SIZE = 4;
+    const TILE_COUNT = GRID_SIZE * GRID_SIZE;
+    const board = document.querySelector('#board');
+    const puzzle = document.querySelector('#puzzle');
+    const loading = document.querySelector('#loading');
+    const photoTitle = document.querySelector('#photo-title');
+    const photoAlt = document.querySelector('#photo-alt');
+    const moveCountLabel = document.querySelector('#move-count');
+    const puzzleStatus = document.querySelector('#puzzle-status');
+    const supabaseSettings = window.FIELD_NOTES_SUPABASE ?? {};
+    let supabaseClient = null;
+    let tiles = [];
+    let moves = 0;
+    let solved = false;
+    let photoCandidates = [];
+    let lastPhotoId = null;
+    let imageScaleX = 1;
+    let imageScaleY = 1;
+
+    function shuffle(items) {
+      for (let index = items.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
+      }
+      return items;
+    }
+
+    function isAdjacent(first, second) {
+      const sameRow = Math.floor(first / GRID_SIZE) === Math.floor(second / GRID_SIZE);
+      return (sameRow && Math.abs(first - second) === 1) || Math.abs(first - second) === GRID_SIZE;
+    }
+
+    function updateStatus(message = '') {
+      moveCountLabel.textContent = `Moves: ${moves}`;
+      puzzleStatus.textContent = message;
+    }
+
+    function renderBoard() {
+      board.replaceChildren();
+      tiles.forEach((tile, position) => {
+        if (tile === 0) {
+          const empty = document.createElement('span');
+          empty.className = 'tile-empty';
+          empty.setAttribute('aria-label', 'Empty space');
+          board.append(empty);
+          return;
+        }
+
+        const button = document.createElement('button');
+        button.className = 'tile';
+        button.type = 'button';
+        button.setAttribute('aria-label', `Tile ${tile}`);
+        const originalRow = Math.floor((tile - 1) / GRID_SIZE);
+        const originalColumn = (tile - 1) % GRID_SIZE;
+        const cropOffsetX = (GRID_SIZE * imageScaleX - GRID_SIZE) / 2;
+        const cropOffsetY = (GRID_SIZE * imageScaleY - GRID_SIZE) / 2;
+        const positionX = (originalColumn + cropOffsetX) / (GRID_SIZE * imageScaleX - 1) * 100;
+        const positionY = (originalRow + cropOffsetY) / (GRID_SIZE * imageScaleY - 1) * 100;
+        button.style.backgroundPosition = `${positionX}% ${positionY}%`;
+        button.addEventListener('click', () => moveTile(position));
+        board.append(button);
+      });
+    }
+
+    function checkSolved() {
+      return tiles.every((tile, index) => tile === (index + 1) % TILE_COUNT);
+    }
+
+    function moveTile(position) {
+      if (solved) return;
+      const emptyPosition = tiles.indexOf(0);
+      if (!isAdjacent(position, emptyPosition)) return;
+      [tiles[position], tiles[emptyPosition]] = [tiles[emptyPosition], tiles[position]];
+      moves += 1;
+      solved = checkSolved();
+      renderBoard();
+      updateStatus(solved ? `Photo solved in ${moves} moves!` : '');
+    }
+
+    function shufflePuzzle() {
+      tiles = Array.from({ length: TILE_COUNT }, (_, index) => (index + 1) % TILE_COUNT);
+      let emptyPosition = TILE_COUNT - 1;
+      let previousEmptyPosition = -1;
+      for (let step = 0; step < 180; step += 1) {
+        const possibleMoves = tiles
+          .map((tile, position) => ({ tile, position }))
+          .filter(({ tile, position }) => tile !== 0 && position !== previousEmptyPosition && isAdjacent(position, emptyPosition))
+          .map(({ position }) => position);
+        const nextPosition = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+        [tiles[emptyPosition], tiles[nextPosition]] = [tiles[nextPosition], tiles[emptyPosition]];
+        previousEmptyPosition = emptyPosition;
+        emptyPosition = nextPosition;
+      }
+      if (checkSolved()) {
+        [tiles[14], tiles[15]] = [tiles[15], tiles[14]];
+      }
+      moves = 0;
+      solved = false;
+      renderBoard();
+      updateStatus('Tap a tile next to the empty space to move it.');
+    }
+
+    function setPhoto(photo) {
+      const photoUrl = photo.image_url || (
+        photo.storage_path
+          ? supabaseClient.storage.from('gallery').getPublicUrl(photo.storage_path).data.publicUrl
+          : null
+      );
+      if (!photoUrl) return Promise.reject(new Error('This photo has no public image URL.'));
+
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => {
+          const parsedUrl = new URL(photoUrl, location.href);
+          if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+            reject(new Error('The photo URL must use HTTP or HTTPS.'));
+            return;
+          }
+          const aspectRatio = image.naturalWidth / image.naturalHeight;
+          imageScaleX = Math.max(1, aspectRatio);
+          imageScaleY = Math.max(1, 1 / aspectRatio);
+          board.style.setProperty('--puzzle-image', `url("${parsedUrl.href}")`);
+          board.style.setProperty('--puzzle-image-size', `${imageScaleX * 400}% ${imageScaleY * 400}%`);
+          photoTitle.textContent = photo.title || 'Anonymouse Photos';
+          photoAlt.textContent = photo.alt_text || '';
+          lastPhotoId = photo.id;
+          shufflePuzzle();
+          puzzle.hidden = false;
+          loading.hidden = true;
+          resolve();
+        };
+        image.onerror = () => reject(new Error(`Could not load "${photo.title || 'photo'}".`));
+        image.src = photoUrl;
+      });
+    }
+
+    async function showRandomPhoto() {
+      puzzle.hidden = true;
+      loading.hidden = false;
+      loading.textContent = 'Finding a photo for your puzzle…';
+      puzzleStatus.dataset.error = 'false';
+      const candidates = shuffle(photoCandidates.filter((photo) => photo.id !== lastPhotoId));
+      const options = candidates.length ? candidates : shuffle([...photoCandidates]);
+      let lastError;
+      for (const photo of options) {
+        try {
+          await setPhoto(photo);
+          return;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      loading.textContent = lastError?.message || 'No photos are available for the puzzle.';
+      loading.dataset.error = 'true';
+    }
+
+    board.addEventListener('keydown', (event) => {
+      const emptyPosition = tiles.indexOf(0);
+      const row = Math.floor(emptyPosition / GRID_SIZE);
+      const column = emptyPosition % GRID_SIZE;
+      let targetPosition = -1;
+      if (event.key === 'ArrowLeft' && column < GRID_SIZE - 1) targetPosition = emptyPosition + 1;
+      if (event.key === 'ArrowRight' && column > 0) targetPosition = emptyPosition - 1;
+      if (event.key === 'ArrowUp' && row < GRID_SIZE - 1) targetPosition = emptyPosition + GRID_SIZE;
+      if (event.key === 'ArrowDown' && row > 0) targetPosition = emptyPosition - GRID_SIZE;
+      if (targetPosition < 0) return;
+      event.preventDefault();
+      moveTile(targetPosition);
+      board.focus();
+    });
+
+    document.querySelector('#shuffle-button').addEventListener('click', shufflePuzzle);
+    document.querySelector('#new-photo-button').addEventListener('click', () => { void showRandomPhoto(); });
+
+    async function loadPhotos() {
+      if (!window.supabase || !supabaseSettings.url || !supabaseSettings.anonKey) {
+        loading.textContent = 'Photo puzzle is not configured. Please try again later.';
+        loading.dataset.error = 'true';
+        return;
+      }
+      supabaseClient = window.supabase.createClient(supabaseSettings.url, supabaseSettings.anonKey);
+      const { data, error } = await supabaseClient
+        .from('photos')
+        .select('id, title, alt_text, image_url, storage_path');
+      if (error) {
+        loading.textContent = `Could not load gallery photos: ${error.message}`;
+        loading.dataset.error = 'true';
+        return;
+      }
+      photoCandidates = (data || []).filter((photo) => photo.image_url || photo.storage_path);
+      if (!photoCandidates.length) {
+        loading.textContent = 'No photos are available for the puzzle yet.';
+        loading.dataset.error = 'true';
+        return;
+      }
+      await showRandomPhoto();
+    }
+
+    document.querySelector('#shuffle-button').disabled = true;
+    document.querySelector('#new-photo-button').disabled = true;
+    void loadPhotos().then(() => {
+      document.querySelector('#shuffle-button').disabled = false;
+      document.querySelector('#new-photo-button').disabled = false;
+    }).catch((error) => {
+      loading.textContent = `Could not load puzzle: ${error.message}`;
+      loading.dataset.error = 'true';
+      document.querySelector('#shuffle-button').disabled = false;
+      document.querySelector('#new-photo-button').disabled = false;
+    });
+  </script>
+</body>
+</html>
