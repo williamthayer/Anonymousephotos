@@ -39,7 +39,7 @@
     .puzzle-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .7fr); align-items: start; gap: clamp(20px, 5vw, 54px); }
     .puzzle-layout[hidden], .loading[hidden] { display: none; }
     .board-wrap { width: min(100%, 620px); margin: 0 auto; }
-    .board { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 5px; border: 1px solid var(--line); background: #e7e6dd; box-shadow: 0 15px 40px rgba(49,62,47,.1); touch-action: manipulation; }
+    .board { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 5px; border: 1px solid var(--line); background: #e7e6dd; box-shadow: 0 15px 40px rgba(49,62,47,.1); touch-action: manipulation; }
     .tile { display: block; width: 100%; aspect-ratio: 1; padding: 0; overflow: hidden; border: 0; background-color: #fff; background-image: var(--puzzle-image); background-repeat: no-repeat; background-size: var(--puzzle-image-size, 400% 400%); cursor: pointer; }
     .tile:hover { filter: brightness(1.08); }
     .tile[disabled] { cursor: default; }
@@ -82,7 +82,7 @@
     <div class="loading" id="loading" role="status">Finding a photo for your puzzle…</div>
     <section class="puzzle-layout" id="puzzle" aria-label="Sliding photo puzzle" hidden>
       <div class="board-wrap">
-        <div class="board" id="board" role="group" aria-label="15-puzzle board" tabindex="0"></div>
+        <div class="board" id="board" role="group" aria-label="8-puzzle board" tabindex="0"></div>
       </div>
       <div class="puzzle-info">
         <h2 class="photo-title" id="photo-title"></h2>
@@ -99,7 +99,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="../supabase-config.js"></script>
   <script>
-    const GRID_SIZE = 4;
+    const GRID_SIZE = 3;
     const TILE_COUNT = GRID_SIZE * GRID_SIZE;
     const board = document.querySelector('#board');
     const puzzle = document.querySelector('#puzzle');
@@ -193,7 +193,8 @@
         emptyPosition = nextPosition;
       }
       if (checkSolved()) {
-        [tiles[14], tiles[15]] = [tiles[15], tiles[14]];
+        const nextPosition = emptyPosition - 1;
+        [tiles[emptyPosition], tiles[nextPosition]] = [tiles[nextPosition], tiles[emptyPosition]];
       }
       moves = 0;
       solved = false;
