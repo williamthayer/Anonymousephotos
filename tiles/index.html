@@ -255,7 +255,10 @@
       loading.dataset.error = 'true';
     }
 
-    board.addEventListener('keydown', (event) => {
+    document.addEventListener('keydown', (event) => {
+      if (puzzle.hidden || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.target instanceof HTMLElement && event.target.isContentEditable) return;
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
       const emptyPosition = tiles.indexOf(0);
       const row = Math.floor(emptyPosition / GRID_SIZE);
       const column = emptyPosition % GRID_SIZE;
