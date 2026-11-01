@@ -32,4 +32,4 @@ The public key is intended for browser use. The SQL policies make gallery metada
 
 ## Tiles game
 
-Mouse Run shows a **Tiles** link after a run ends with a score above 200. The puzzle page is in `tiles/index.html` and loads a random public photo from the gallery. To serve it at `tiles.anonymousephotos.com`, configure DNS and hosting to route that subdomain to the Tiles page; the existing `CNAME` configures this repository's current `www.anonymousephotos.com` host only.
+Mouse Run shows a **Tiles** link after a run ends with a score above 200. It opens the puzzle at `/tiles/`, which loads a random public photo from the gallery.
