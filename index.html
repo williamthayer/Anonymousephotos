@@ -83,22 +83,22 @@
     h1 em { color: var(--moss); font-weight: 500; }
     .intro-copy { max-width: 235px; margin: 0 0 5px; color: var(--muted); font-size: 13px; line-height: 1.75; }
 
-    .photo-collection { display: grid; grid-template-columns: minmax(0, 1fr) 210px; align-items: start; gap: 28px; }
-    .photo-collection.tags-collapsed { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-    .photo-collection.tags-collapsed .gallery-main { grid-row: 2; }
-    .photo-collection.tags-collapsed .tag-sidebar { z-index: 5; grid-row: 1; top: 0; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line); background: var(--paper); }
+    .photo-collection { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 12px; }
+    .photo-collection .gallery-main { grid-row: 2; }
+    .tag-sidebar { position: sticky; z-index: 5; top: 0; grid-row: 1; min-width: 0; padding: 10px 0; border-bottom: 1px solid var(--line); background: var(--paper); }
     .photo-collection.tags-collapsed .photo-tags { display: none; }
     .gallery-main { min-width: 0; }
     .gallery-toolbar { min-height: 44px; display: flex; justify-content: flex-end; align-items: center; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-    .tag-sidebar { position: sticky; top: 24px; min-width: 0; padding: 15px 0 15px 18px; border-left: 1px solid var(--line); }
+    .tag-sidebar-heading { display: flex; align-items: center; gap: 18px; }
     .tag-sidebar-title { margin: 0; color: var(--muted); font: 9px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
-    .tag-sidebar-toggle { width: 100%; padding: 0; display: flex; justify-content: space-between; align-items: center; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; letter-spacing: inherit; text-align: left; text-transform: inherit; }
+    .tag-sidebar-toggle { padding: 0; display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; letter-spacing: inherit; text-align: left; text-transform: inherit; }
     .tag-sidebar-toggle::after { content: "−"; font: 12px var(--mono); }
     .tag-sidebar-toggle[aria-expanded="false"]::after { content: "+"; }
-    .tag-filters { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 7px; padding: 12px 0; }
+    .tag-sort-toggle { padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; font: 9px var(--mono); letter-spacing: .04em; text-transform: uppercase; }
+    .tag-sort-toggle:hover { color: var(--ink); }
+    .tag-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 9px 0 0; }
     .tag-filters[hidden] { display: none; }
-    .tag-filter, .clear-tags { min-height: 29px; padding: 0 11px; border: 1px solid var(--line); border-radius: 2px; background: transparent; color: var(--muted); cursor: pointer; font: 9px var(--mono); letter-spacing: .04em; }
-    .tag-filter, .clear-tags { width: 100%; text-align: left; }
+    .tag-filter, .clear-tags { min-height: 29px; width: auto; padding: 0 11px; border: 1px solid var(--line); border-radius: 2px; background: transparent; color: var(--muted); cursor: pointer; font: 9px var(--mono); letter-spacing: .04em; text-align: left; }
     .tag-filter[aria-pressed="true"] { border-color: var(--moss); background: var(--moss); color: #fff; }
     .tag-filter:hover:not([aria-pressed="true"]) { border-color: var(--moss); color: var(--ink); }
     .clear-tags { border-color: transparent; text-decoration: underline; text-underline-offset: 3px; }
@@ -162,11 +162,7 @@
       .intro { padding: 56px 0 30px; grid-template-columns: 1fr; gap: 14px; }
       h1 { font-size: clamp(49px, 13vw, 72px); }
       .intro-copy { max-width: 290px; font-size: 12px; }
-      .photo-collection { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-      .tag-sidebar { position: sticky; z-index: 5; top: 0; grid-row: 1; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); border-left: 0; background: var(--paper); }
-      .tag-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 9px 0 0; }
       .tag-filter, .clear-tags { min-height: 27px; padding: 0 8px; font-size: 8px; }
-      .tag-filter, .clear-tags { width: auto; }
       .photo-count { padding-bottom: 12px; font-size: 9px; }
       .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 11px; padding-top: 15px; }
       .photo-card:nth-child(n) .photo-button { aspect-ratio: 1 / 1.2; }
@@ -219,7 +215,7 @@
     <section class="intro" aria-labelledby="page-title">
       <div>
         <p class="eyebrow">Real photos taken by a real person</p>
-        <h1 id="page-title">Photos of things,<br>taken <em>whenever.</em></h1>
+        <h1 id="page-title">Photos of things,<br>taken <em>whenever & wherever</em></h1>
       </div>
       <p class="intro-copy">Link to Etsy Shop</p>
     </section>
@@ -260,8 +256,11 @@
         <p class="gallery-empty" id="gallery-empty" aria-live="polite">No photos uploaded yet.</p>
       </div>
       <aside class="tag-sidebar" aria-label="Photo filters">
-        <h2 class="tag-sidebar-title"><button class="tag-sidebar-toggle" id="tag-sidebar-toggle" type="button" aria-expanded="false" aria-controls="tag-filters">Filter by tag</button></h2>
-        <div class="tag-filters" id="tag-filters" role="group" aria-label="Filter photographs by tags" hidden>
+          <div class="tag-sidebar-heading">
+            <h2 class="tag-sidebar-title"><button class="tag-sidebar-toggle" id="tag-sidebar-toggle" type="button" aria-expanded="false" aria-controls="tag-filters">Filter by tag</button></h2>
+            <button class="tag-sort-toggle" id="tag-sort-toggle" type="button" aria-label="Switch to alphabetical photo and tag order" aria-pressed="false">Random</button>
+          </div>
+          <div class="tag-filters" id="tag-filters" role="group" aria-label="Filter photographs by tags" hidden>
           <button class="clear-tags" id="clear-tags" type="button" disabled>Clear tags</button>
         </div>
     </section>
@@ -303,6 +302,7 @@
     const tagButtons = [...document.querySelectorAll('.tag-filter')];
     const clearTagsButton = document.querySelector('#clear-tags');
     const tagSidebarToggle = document.querySelector('#tag-sidebar-toggle');
+    const tagSortToggle = document.querySelector('#tag-sort-toggle');
     const tagFilters = document.querySelector('#tag-filters');
     const photoCollection = document.querySelector('.photo-collection');
     const photoCount = document.querySelector('#photo-count');
@@ -334,6 +334,7 @@
     let swipeStart = null;
     let verifiedAdminId = null;
     let adminMode = false;
+    let sortAlphabetically = false;
 
     function formatTag(tag) {
       return tag.split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
@@ -407,15 +408,48 @@
       bindTagButton(button);
     }
 
+    function shuffleItems(items) {
+      for (let index = items.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
+      }
+      return items;
+    }
+
     function shuffleTagFilters() {
       const filterContainer = document.querySelector('.tag-filters');
       const clearButton = document.querySelector('#clear-tags');
-      const filters = [...filterContainer.querySelectorAll('.tag-filter')];
-      for (let index = filters.length - 1; index > 0; index -= 1) {
-        const swapIndex = Math.floor(Math.random() * (index + 1));
-        [filters[index], filters[swapIndex]] = [filters[swapIndex], filters[index]];
-      }
+      const filters = shuffleItems([...filterContainer.querySelectorAll('.tag-filter')]);
       filters.forEach((button) => filterContainer.insertBefore(button, clearButton));
+    }
+
+    function shufflePhotoTags() {
+      cards.forEach((card) => {
+        const photoTags = card.querySelector('.photo-tags');
+        shuffleItems([...photoTags.querySelectorAll('.photo-tag')]).forEach((button) => photoTags.append(button));
+      });
+    }
+
+    function sortGalleryAndTagsAlphabetically() {
+      const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+      cards.sort((first, second) => collator.compare(
+        first.querySelector('.photo-title').textContent.trim(),
+        second.querySelector('.photo-title').textContent.trim()
+      ));
+      cards.forEach((card) => gallery.append(card));
+
+      const filterContainer = document.querySelector('.tag-filters');
+      const clearButton = document.querySelector('#clear-tags');
+      const filters = [...filterContainer.querySelectorAll('.tag-filter')];
+      filters.sort((first, second) => collator.compare(first.textContent.trim(), second.textContent.trim()));
+      filters.forEach((button) => filterContainer.insertBefore(button, clearButton));
+
+      cards.forEach((card) => {
+        const photoTags = card.querySelector('.photo-tags');
+        const photoTagButtons = [...photoTags.querySelectorAll('.photo-tag')];
+        photoTagButtons.sort((first, second) => collator.compare(first.textContent.trim(), second.textContent.trim()));
+        photoTagButtons.forEach((button) => photoTags.append(button));
+      });
     }
 
     function createPhotoTagButton(tag) {
@@ -458,6 +492,24 @@
       tagFilters.hidden = !tagFilters.hidden;
       tagSidebarToggle.setAttribute('aria-expanded', String(!tagFilters.hidden));
       photoCollection.classList.toggle('tags-collapsed', tagFilters.hidden);
+    });
+
+    tagSortToggle.addEventListener('click', () => {
+      sortAlphabetically = !sortAlphabetically;
+      tagSortToggle.textContent = sortAlphabetically ? 'A–Z' : 'Random';
+      tagSortToggle.setAttribute('aria-pressed', String(sortAlphabetically));
+      tagSortToggle.setAttribute('aria-label', sortAlphabetically
+        ? 'Switch to random photo and tag order'
+        : 'Switch to alphabetical photo and tag order');
+
+      if (sortAlphabetically) {
+        sortGalleryAndTagsAlphabetically();
+      } else {
+        shuffleItems(cards);
+        cards.forEach((card) => gallery.append(card));
+        shuffleTagFilters();
+        shufflePhotoTags();
+      }
     });
 
     function showPhoto(index) {
@@ -533,6 +585,7 @@
       photoButton.addEventListener('click', () => openLightbox(article));
       gallery.append(article);
       cards.push(article);
+      if (sortAlphabetically) sortGalleryAndTagsAlphabetically();
       applyTagFilters();
     }
 
@@ -757,12 +810,14 @@
         const existingCard = cards.find((card) => card.dataset.photoId === photo.id);
         if (existingCard) {
           renderCardTags(existingCard, tags);
+          if (sortAlphabetically) sortGalleryAndTagsAlphabetically();
           applyTagFilters();
         } else {
           createUploadedCard({ ...photo, tags }, imageUrl);
         }
       }
-      shuffleTagFilters();
+      if (sortAlphabetically) sortGalleryAndTagsAlphabetically();
+      else shuffleTagFilters();
     }
 
     async function verifyAdminSession(session) {
